@@ -4,7 +4,6 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -29,7 +28,7 @@ type CompilerService struct {
 
 func main() {
 	service := &CompilerService{
-		workDir: "/tmp/latex-work", 
+		workDir: "/tmp/latex-work",
 	}
 
 	os.MkdirAll(service.workDir, 0755)
@@ -54,21 +53,19 @@ func (cs *CompilerService) handleCompile(c *gin.Context) {
 	log.Printf("📝 Compiling request: %s", req.RequestID)
 
 	tempDir := filepath.Join(cs.workDir, req.RequestID)
-	defer os.RemoveAll(tempDir) 
+	defer os.RemoveAll(tempDir)
 
 	if err := os.MkdirAll(tempDir, 0755); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create work directory"})
 		return
 	}
 
-	
 	if err := cs.extractZip(req.FileData, tempDir); err != nil {
 		log.Printf("❌ ZIP extraction failed for %s: %v", req.RequestID, err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("ZIP extraction failed: %v", err)})
 		return
 	}
 
-	
 	texFile, err := cs.findMainTexFile(tempDir)
 	if err != nil {
 		log.Printf("❌ No .tex file found for %s", req.RequestID)
@@ -76,11 +73,10 @@ func (cs *CompilerService) handleCompile(c *gin.Context) {
 		return
 	}
 
-	
 	pdfPath, compileLog, err := cs.compileLaTeX(tempDir, texFile)
 	if err != nil {
 		log.Printf("❌ Compilation failed for %s: %v", req.RequestID, err)
-		
+
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": fmt.Sprintf("LaTeX compilation failed: %v", err),
 			"log":   compileLog,
@@ -88,7 +84,6 @@ func (cs *CompilerService) handleCompile(c *gin.Context) {
 		return
 	}
 
-	
 	pdfData, err := os.ReadFile(pdfPath)
 	if err != nil {
 		log.Printf("❌ Failed to read PDF for %s: %v", req.RequestID, err)
@@ -98,11 +93,9 @@ func (cs *CompilerService) handleCompile(c *gin.Context) {
 
 	log.Printf("✅ Successfully compiled %s (%d bytes)", req.RequestID, len(pdfData))
 
-	
 	c.Header("Content-Type", "application/pdf")
 	c.Data(http.StatusOK, "application/pdf", pdfData)
 }
-
 
 func (cs *CompilerService) extractZip(data []byte, destDir string) error {
 	reader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
@@ -110,44 +103,38 @@ func (cs *CompilerService) extractZip(data []byte, destDir string) error {
 		return err
 	}
 
-	
 	if len(reader.File) > 50 {
 		return fmt.Errorf("too many files in archive (max 50)")
 	}
 
 	for _, file := range reader.File {
-		
+
 		destPath := filepath.Join(destDir, file.Name)
 		if !strings.HasPrefix(destPath, filepath.Clean(destDir)+string(os.PathSeparator)) {
 			return fmt.Errorf("illegal file path: %s", file.Name)
 		}
 
-		
 		if file.FileInfo().IsDir() {
 			os.MkdirAll(destPath, file.Mode())
 			continue
 		}
 
-		
 		if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
 			return err
 		}
 
-		
 		rc, err := file.Open()
 		if err != nil {
 			return err
 		}
 
-		
 		outFile, err := os.OpenFile(destPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.Mode())
 		if err != nil {
 			rc.Close()
 			return err
 		}
 
-		
-		_, err = io.CopyN(outFile, rc, 5*1024*1024) 
+		_, err = io.CopyN(outFile, rc, 5*1024*1024)
 		if err != nil && err != io.EOF {
 			rc.Close()
 			outFile.Close()
@@ -159,7 +146,6 @@ func (cs *CompilerService) extractZip(data []byte, destDir string) error {
 	}
 	return nil
 }
-
 
 func (cs *CompilerService) findMainTexFile(dir string) (string, error) {
 	var texFiles []string
@@ -180,7 +166,6 @@ func (cs *CompilerService) findMainTexFile(dir string) (string, error) {
 		return "", fmt.Errorf("no .tex files found")
 	}
 
-	
 	for _, texFile := range texFiles {
 		basename := strings.ToLower(filepath.Base(texFile))
 		if basename == "main.tex" || basename == "document.tex" || basename == "paper.tex" {
@@ -188,35 +173,29 @@ func (cs *CompilerService) findMainTexFile(dir string) (string, error) {
 		}
 	}
 
-	
 	return texFiles[0], nil
 }
 
-
 func (cs *CompilerService) compileLaTeX(workDir, texFile string) (string, string, error) {
-	
+
 	relTexFile, _ := filepath.Rel(workDir, texFile)
 	log.Printf("🔄 Compiling %s in %s", relTexFile, workDir)
 
-	
 	cmd := exec.Command("pdflatex",
 		"-interaction=nonstopmode",
 		"-halt-on-error",
 		"-file-line-error",
 		relTexFile,
 	)
-	cmd.Dir = workDir 
+	cmd.Dir = workDir
 
-	
 	var output bytes.Buffer
 	cmd.Stdout = &output
 	cmd.Stderr = &output
 
-	
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	
 	err := cmd.Run()
 	if ctx.Err() == context.DeadlineExceeded {
 		return "", "Compilation timeout (30s)", fmt.Errorf("compilation timeout")
@@ -225,7 +204,6 @@ func (cs *CompilerService) compileLaTeX(workDir, texFile string) (string, string
 		return "", output.String(), fmt.Errorf("pdflatex error: %v", err)
 	}
 
-	
 	pdfName := strings.TrimSuffix(relTexFile, filepath.Ext(relTexFile)) + ".pdf"
 	pdfPath := filepath.Join(workDir, pdfName)
 
@@ -236,14 +214,13 @@ func (cs *CompilerService) compileLaTeX(workDir, texFile string) (string, string
 	return pdfPath, output.String(), nil
 }
 
-
 func (cs *CompilerService) checkTexLive() string {
 	cmd := exec.Command("pdflatex", "--version")
 	output, err := cmd.Output()
 	if err != nil {
 		return "unavailable"
 	}
-	
+
 	lines := strings.Split(string(output), "\n")
 	if len(lines) > 0 {
 		return strings.TrimSpace(lines[0])
