@@ -1,0 +1,36 @@
+\documentclass{article}
+
+% For images
+\usepackage{graphicx}
+
+% For custom fonts (if they are installed on the system)
+\usepackage{fontspec}
+\setmainfont{TeX Gyre Termes} % Example font, change as needed
+
+% For custom margins
+\usepackage[left=1.5in, right=1.5in, top=1in, bottom=1in]{geometry}
+
+% For custom line spacing
+\usepackage{setspace}
+\onehalfspacing % 1.5 line spacing
+
+\title{My Awesome Document}
+\author{Satyendra}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+Hello, world! [cite_start]This is my first document compiled with the microservice[cite: 16].
+
+Here is an image:
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.5\textwidth]{w3c_home.png}
+\caption{The W3C Logo}
+\end{figure}
+
+\end{document}
