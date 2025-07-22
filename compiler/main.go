@@ -411,6 +411,14 @@ func (cs *CompilerService) runLatexCommand(workDir, relTexFile, compiler string,
 	)
 	cmd.Dir = workDir
 
+	// Set environment variables for LuaLaTeX font cache
+	cmd.Env = append(os.Environ(),
+		"LUAOTFLOAD_CACHEDIR=/var/cache/luaotfload",
+		"TEXMFCACHE=/var/cache/luaotfload",
+		"TEXMFVAR=/home/texuser/.texlive2024/texmf-var",
+		"OSFONTDIR=/usr/share/fonts",
+	)
+
 	log.Printf("🚀 Executing pass %d: %s %s", passNum, compiler, strings.Join(cmd.Args[1:], " "))
 
 	var output bytes.Buffer
