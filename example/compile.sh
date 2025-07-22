@@ -94,7 +94,7 @@ while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
             ERROR=$(echo "$STATUS_RESPONSE" | grep -o '"error":"[^"]*' | cut -d'"' -f4 | sed 's/\\n/\n/g' | sed 's/\\"/"/g')
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
             echo "📋 Error Details:"
-            echo "$ERROR"
+            echo "$STATUS_RESPONSE" | jq
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
             echo "💡 Tip: If using fontspec package, use 'xelatex' or 'lualatex' instead of 'pdflatex'"
             exit 1

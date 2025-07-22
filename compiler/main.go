@@ -308,10 +308,100 @@ func (cs *CompilerService) compileLaTeX(workDir, texFile, compiler string) (stri
 	}
 
 	relTexFile, _ := filepath.Rel(workDir, texFile)
-	log.Printf("🔄 Starting compilation:")
+	baseFile := strings.TrimSuffix(relTexFile, filepath.Ext(relTexFile))
+
+	log.Printf("🔄 Starting multi-pass compilation:")
 	log.Printf("   - Working directory: %s", workDir)
 	log.Printf("   - TeX file: %s", relTexFile)
+	log.Printf("   - Base name: %s", baseFile)
 	log.Printf("   - Compiler: %s", compiler)
+
+	var allOutput strings.Builder
+
+	// Check if we have bibliography files
+	hasBib := cs.hasBibliography(workDir)
+	log.Printf("📚 Bibliography files detected: %v", hasBib)
+
+	// Pass 1: Initial LaTeX compilation
+	log.Printf("🚀 Pass 1: Initial LaTeX compilation")
+	output1, err := cs.runLatexCommand(workDir, relTexFile, compiler, 1)
+	allOutput.WriteString("=== PASS 1 (Initial LaTeX) ===\n")
+	allOutput.WriteString(output1)
+	allOutput.WriteString("\n\n")
+
+	if err != nil {
+		log.Printf("❌ Pass 1 failed: %v", err)
+		return "", allOutput.String(), fmt.Errorf("LaTeX pass 1 failed: %v", err)
+	}
+
+	// If we have bibliography, run BibTeX and additional LaTeX passes
+	if hasBib {
+		// Check if citations were found in .aux file
+		auxFile := filepath.Join(workDir, baseFile+".aux")
+		needsBib := cs.checkCitationsInAux(auxFile)
+
+		if needsBib {
+			log.Printf("📖 Pass 2: Running BibTeX")
+			bibOutput, err := cs.runBibtex(workDir, baseFile)
+			allOutput.WriteString("=== PASS 2 (BibTeX) ===\n")
+			allOutput.WriteString(bibOutput)
+			allOutput.WriteString("\n\n")
+
+			if err != nil {
+				log.Printf("⚠️ BibTeX failed (non-fatal): %v", err)
+				// Don't fail completely, continue with remaining passes
+			}
+
+			// Pass 3: LaTeX after BibTeX
+			log.Printf("🚀 Pass 3: LaTeX after BibTeX")
+			output3, err := cs.runLatexCommand(workDir, relTexFile, compiler, 3)
+			allOutput.WriteString("=== PASS 3 (LaTeX after BibTeX) ===\n")
+			allOutput.WriteString(output3)
+			allOutput.WriteString("\n\n")
+
+			if err != nil {
+				log.Printf("❌ Pass 3 failed: %v", err)
+				return "", allOutput.String(), fmt.Errorf("LaTeX pass 3 failed: %v", err)
+			}
+
+			// Pass 4: Final LaTeX for cross-references
+			log.Printf("� Pass 4: Final LaTeX for cross-references")
+			output4, err := cs.runLatexCommand(workDir, relTexFile, compiler, 4)
+			allOutput.WriteString("=== PASS 4 (Final LaTeX) ===\n")
+			allOutput.WriteString(output4)
+			allOutput.WriteString("\n\n")
+
+			if err != nil {
+				log.Printf("❌ Pass 4 failed: %v", err)
+				return "", allOutput.String(), fmt.Errorf("LaTeX pass 4 failed: %v", err)
+			}
+		}
+	}
+
+	// Check for generated PDF
+	pdfPath := filepath.Join(workDir, baseFile+".pdf")
+	log.Printf("🔍 Looking for generated PDF: %s", pdfPath)
+
+	pdfInfo, err := os.Stat(pdfPath)
+	if os.IsNotExist(err) {
+		log.Printf("❌ PDF file was not generated: %s", pdfPath)
+		return "", allOutput.String(), fmt.Errorf("PDF not generated")
+	} else if err != nil {
+		log.Printf("❌ Error checking PDF file: %v", err)
+		return "", allOutput.String(), fmt.Errorf("error checking PDF file: %v", err)
+	}
+
+	elapsed := time.Since(start)
+	log.Printf("✅ Multi-pass compilation successful! PDF: %s (%d bytes, total time: %v)",
+		pdfPath, pdfInfo.Size(), elapsed)
+
+	return pdfPath, allOutput.String(), nil
+}
+
+// Helper function to run a single LaTeX command
+func (cs *CompilerService) runLatexCommand(workDir, relTexFile, compiler string, passNum int) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
 	cmd := exec.Command(compiler,
 		"-interaction=nonstopmode",
@@ -321,49 +411,93 @@ func (cs *CompilerService) compileLaTeX(workDir, texFile, compiler string) (stri
 	)
 	cmd.Dir = workDir
 
-	log.Printf("🚀 Executing command: %s %s", compiler, strings.Join(cmd.Args[1:], " "))
+	log.Printf("🚀 Executing pass %d: %s %s", passNum, compiler, strings.Join(cmd.Args[1:], " "))
 
 	var output bytes.Buffer
 	cmd.Stdout = &output
 	cmd.Stderr = &output
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
 
 	compileStart := time.Now()
 	err := cmd.Run()
 	compileElapsed := time.Since(compileStart)
 
 	if ctx.Err() == context.DeadlineExceeded {
-		log.Printf("⏰ Compilation timeout after 30 seconds")
-		return "", "Compilation timeout (30s)", fmt.Errorf("compilation timeout")
+		log.Printf("⏰ Pass %d timeout after 30 seconds", passNum)
+		return "Compilation timeout (30s)", fmt.Errorf("compilation timeout")
 	}
 
 	outputStr := output.String()
-	log.Printf("📜 Compilation output (%v):\n%s", compileElapsed, outputStr)
+	log.Printf("📜 Pass %d output (%v): %d bytes", passNum, compileElapsed, len(outputStr))
 
 	if err != nil {
-		log.Printf("❌ Compilation failed with error: %v", err)
-		return "", outputStr, fmt.Errorf("pdflatex error: %v", err)
+		log.Printf("❌ Pass %d failed with error: %v", passNum, err)
+		return outputStr, fmt.Errorf("pass %d error: %v", passNum, err)
 	}
 
-	pdfName := strings.TrimSuffix(relTexFile, filepath.Ext(relTexFile)) + ".pdf"
-	pdfPath := filepath.Join(workDir, pdfName)
-	log.Printf("🔍 Looking for generated PDF: %s", pdfPath)
+	log.Printf("✅ Pass %d completed successfully", passNum)
+	return outputStr, nil
+}
 
-	pdfInfo, err := os.Stat(pdfPath)
-	if os.IsNotExist(err) {
-		log.Printf("❌ PDF file was not generated: %s", pdfPath)
-		return "", outputStr, fmt.Errorf("PDF not generated despite no command error")
-	} else if err != nil {
-		log.Printf("❌ Error checking PDF file: %v", err)
-		return "", outputStr, fmt.Errorf("error checking PDF file: %v", err)
+// Helper function to run BibTeX
+func (cs *CompilerService) runBibtex(workDir, baseFile string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	cmd := exec.Command("bibtex", baseFile)
+	cmd.Dir = workDir
+
+	log.Printf("🚀 Executing BibTeX: bibtex %s", baseFile)
+
+	var output bytes.Buffer
+	cmd.Stdout = &output
+	cmd.Stderr = &output
+
+	bibStart := time.Now()
+	err := cmd.Run()
+	bibElapsed := time.Since(bibStart)
+
+	if ctx.Err() == context.DeadlineExceeded {
+		log.Printf("⏰ BibTeX timeout after 15 seconds")
+		return "BibTeX timeout (15s)", fmt.Errorf("BibTeX timeout")
 	}
 
-	elapsed := time.Since(start)
-	log.Printf("✅ Compilation successful! PDF: %s (%d bytes, total time: %v)",
-		pdfPath, pdfInfo.Size(), elapsed)
-	return pdfPath, outputStr, nil
+	outputStr := output.String()
+	log.Printf("📜 BibTeX output (%v): %d bytes", bibElapsed, len(outputStr))
+
+	if err != nil {
+		log.Printf("❌ BibTeX failed with error: %v", err)
+		return outputStr, fmt.Errorf("BibTeX error: %v", err)
+	}
+
+	log.Printf("✅ BibTeX completed successfully")
+	return outputStr, nil
+}
+
+// Helper function to check if bibliography files exist
+func (cs *CompilerService) hasBibliography(workDir string) bool {
+	bibFiles, err := filepath.Glob(filepath.Join(workDir, "*.bib"))
+	if err != nil {
+		log.Printf("⚠️ Error checking for .bib files: %v", err)
+		return false
+	}
+
+	log.Printf("🔍 Found %d .bib files: %v", len(bibFiles), bibFiles)
+	return len(bibFiles) > 0
+}
+
+// Helper function to check if citations exist in .aux file
+func (cs *CompilerService) checkCitationsInAux(auxFile string) bool {
+	content, err := os.ReadFile(auxFile)
+	if err != nil {
+		log.Printf("⚠️ Could not read .aux file %s: %v", auxFile, err)
+		return false
+	}
+
+	auxContent := string(content)
+	hasCitations := strings.Contains(auxContent, "\\citation{") || strings.Contains(auxContent, "\\bibdata{")
+	log.Printf("📖 Citations found in .aux file: %v", hasCitations)
+
+	return hasCitations
 }
 
 func (cs *CompilerService) checkTexLive() string {
