@@ -2,8 +2,11 @@ FROM alpine:latest
 
 RUN apk add --no-cache \
     texlive \
+    texlive-full \
     texlive-most \
     texlive-langextra \
+    texlive-xetex \
+    texlive-luatex \
     go \
     curl \
     && rm -rf /var/cache/apk/*

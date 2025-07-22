@@ -20,15 +20,22 @@ import (
 type CompileRequest struct {
 	RequestID string `json:"request_id"`
 	FileData  []byte `json:"file_data"`
+	Compiler  string `json:"compiler,omitempty"`
 }
 
 type CompilerService struct {
-	workDir string
+	workDir          string
+	allowedCompilers map[string]bool
 }
 
 func main() {
 	service := &CompilerService{
 		workDir: "/tmp/latex-work",
+		allowedCompilers: map[string]bool{
+			"pdflatex": true,
+			"xelatex":  true,
+			"lualatex": true,
+		},
 	}
 
 	os.MkdirAll(service.workDir, 0755)
@@ -36,7 +43,11 @@ func main() {
 	r := gin.Default()
 	r.POST("/compile", service.handleCompile)
 	r.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{"status": "healthy", "texlive": service.checkTexLive()})
+		c.JSON(200, gin.H{
+			"status":    "healthy",
+			"texlive":   service.checkTexLive(),
+			"compilers": []string{"pdflatex", "xelatex", "lualatex"},
+		})
 	})
 
 	log.Println("🔧 TexLive Compiler Service starting on :8081")
@@ -50,7 +61,20 @@ func (cs *CompilerService) handleCompile(c *gin.Context) {
 		return
 	}
 
-	log.Printf("📝 Compiling request: %s", req.RequestID)
+	// Default to pdflatex if no compiler specified
+	if req.Compiler == "" {
+		req.Compiler = "pdflatex"
+	}
+
+	// Validate compiler
+	if !cs.allowedCompilers[req.Compiler] {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": fmt.Sprintf("Unsupported compiler: %s. Allowed compilers: pdflatex, xelatex, lualatex", req.Compiler),
+		})
+		return
+	}
+
+	log.Printf("📝 Compiling request: %s with %s", req.RequestID, req.Compiler)
 
 	tempDir := filepath.Join(cs.workDir, req.RequestID)
 	defer os.RemoveAll(tempDir)
@@ -73,7 +97,7 @@ func (cs *CompilerService) handleCompile(c *gin.Context) {
 		return
 	}
 
-	pdfPath, compileLog, err := cs.compileLaTeX(tempDir, texFile)
+	pdfPath, compileLog, err := cs.compileLaTeX(tempDir, texFile, req.Compiler)
 	if err != nil {
 		log.Printf("❌ Compilation failed for %s: %v", req.RequestID, err)
 
@@ -176,12 +200,16 @@ func (cs *CompilerService) findMainTexFile(dir string) (string, error) {
 	return texFiles[0], nil
 }
 
-func (cs *CompilerService) compileLaTeX(workDir, texFile string) (string, string, error) {
+func (cs *CompilerService) compileLaTeX(workDir, texFile, compiler string) (string, string, error) {
+	// Validate compiler again for safety
+	if !cs.allowedCompilers[compiler] {
+		return "", "", fmt.Errorf("invalid compiler: %s", compiler)
+	}
 
 	relTexFile, _ := filepath.Rel(workDir, texFile)
-	log.Printf("🔄 Compiling %s in %s", relTexFile, workDir)
+	log.Printf("🔄 Compiling %s in %s with %s", relTexFile, workDir, compiler)
 
-	cmd := exec.Command("pdflatex",
+	cmd := exec.Command(compiler,
 		"-interaction=nonstopmode",
 		"-halt-on-error",
 		"-file-line-error",

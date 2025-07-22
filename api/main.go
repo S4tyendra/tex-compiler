@@ -23,6 +23,7 @@ type CompileRequest struct {
 	ID       string    `json:"id"`
 	Status   string    `json:"status"`
 	FilePath string    `json:"file_path,omitempty"`
+	Compiler string    `json:"compiler,omitempty"`
 	Error    string    `json:"error,omitempty"`
 	Created  time.Time `json:"created"`
 }
@@ -34,6 +35,7 @@ type App struct {
 	texliveServiceURL   string
 	pdfRetentionMins    time.Duration
 	statusRetentionMins time.Duration
+	allowedCompilers    map[string]bool
 }
 
 func main() {
@@ -47,6 +49,11 @@ func main() {
 		texliveServiceURL:   getEnv("TEXLIVE_SERVICE_URL", "http://localhost:8081"),
 		pdfRetentionMins:    time.Duration(getEnvInt("PDF_RETENTION_MINUTES", 3)) * time.Minute,
 		statusRetentionMins: time.Duration(getEnvInt("STATUS_RETENTION_MINUTES", 10)) * time.Minute,
+		allowedCompilers: map[string]bool{
+			"pdflatex": true,
+			"xelatex":  true,
+			"lualatex": true,
+		},
 	}
 
 	go app.processQueue()
@@ -69,7 +76,11 @@ func main() {
 	r.GET("/status/:id", app.handleStatus)
 	r.GET("/download/:id", app.handleDownload)
 	r.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{"status": "healthy", "queue_size": app.getQueueSize()})
+		c.JSON(200, gin.H{
+			"status":     "healthy",
+			"queue_size": app.getQueueSize(),
+			"compilers":  []string{"pdflatex", "xelatex", "lualatex"},
+		})
 	})
 
 	log.Println("🚀 LaTeX API Server starting on :8080")
@@ -100,6 +111,20 @@ func (app *App) handleCompile(c *gin.Context) {
 		return
 	}
 
+	// Get compiler parameter (optional, defaults to pdflatex)
+	compiler := c.PostForm("compiler")
+	if compiler == "" {
+		compiler = "pdflatex" // default
+	}
+
+	// Validate compiler
+	if !app.allowedCompilers[compiler] {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": fmt.Sprintf("Unsupported compiler: %s. Allowed compilers: pdflatex, xelatex, lualatex", compiler),
+		})
+		return
+	}
+
 	requestID := uuid.New().String()
 
 	uploadPath := filepath.Join("uploads", requestID+".zip")
@@ -125,6 +150,7 @@ func (app *App) handleCompile(c *gin.Context) {
 		ID:       requestID,
 		Status:   "queued",
 		FilePath: uploadPath,
+		Compiler: compiler,
 		Created:  time.Now(),
 	}
 
@@ -203,7 +229,7 @@ func (app *App) processRequest(requestID string) {
 	reqJSON = string(reqJSONBytes)
 	app.redis.Set(ctx, "req:"+requestID, reqJSON, app.statusRetentionMins)
 
-	success, errMsg := app.compileWithTexLive(requestID, req.FilePath)
+	success, errMsg := app.compileWithTexLive(requestID, req.FilePath, req.Compiler)
 
 	if success {
 		req.Status = "completed"
@@ -221,7 +247,12 @@ func (app *App) processRequest(requestID string) {
 	os.Remove(req.FilePath)
 }
 
-func (app *App) compileWithTexLive(requestID, filePath string) (bool, string) {
+func (app *App) compileWithTexLive(requestID, filePath, compiler string) (bool, string) {
+	// Default to pdflatex if compiler is empty
+	if compiler == "" {
+		compiler = "pdflatex"
+	}
+
 	fileData, err := os.ReadFile(filePath)
 	if err != nil {
 		return false, "Failed to read uploaded file"
@@ -230,6 +261,7 @@ func (app *App) compileWithTexLive(requestID, filePath string) (bool, string) {
 	payload := map[string]interface{}{
 		"request_id": requestID,
 		"file_data":  fileData,
+		"compiler":   compiler,
 	}
 	payloadJSON, _ := json.Marshal(payload)
 

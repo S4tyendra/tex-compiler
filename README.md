@@ -3,6 +3,7 @@
 A secure, scalable microservice architecture for compiling LaTeX documents to PDF via a REST API. Built with Go, Docker Compose, and hardened for security and resource control.
 
 ## Features
+- **Multiple LaTeX compilers**: Supports pdflatex, xelatex, and lualatex
 - **Microservice architecture**: API server, compiler, and Redis are separate containers
 - **Security**: Non-root compiler, file validation, directory traversal protection
 - **Memory/resource limits**: Each container has strict memory limits
