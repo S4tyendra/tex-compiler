@@ -8,6 +8,8 @@ RUN apk add --no-cache \
     texlive-xetex \
     texlive-luatex \
     texmf-dist-fontsextra \
+    texmf-dist-latexextra \
+    fontconfig \
     go \
     curl \
     && rm -rf /var/cache/apk/*
@@ -23,6 +25,7 @@ RUN mkdir -p /home/texuser/.texlive2024/texmf-var \
     && mkdir -p /tmp/latex-work \
     && mkdir -p /tmp/luaotfload-cache \
     && mkdir -p /var/cache/luaotfload \
+    && mkdir -p /usr/share/fonts/truetype/lm \
     && chown -R texuser:texuser /home/texuser \
     && chown -R texuser:texuser /tmp/latex-work \
     && chown -R texuser:texuser /tmp/luaotfload-cache \
@@ -38,7 +41,7 @@ ENV TEXMFVAR=/home/texuser/.texlive2024/texmf-var
 ENV TEXMFCACHE=/var/cache/luaotfload
 ENV TEXMFCONFIG=/home/texuser/.texlive2024/texmf-config
 ENV LUAOTFLOAD_CACHEDIR=/var/cache/luaotfload
-ENV OSFONTDIR=/usr/share/fonts
+ENV OSFONTDIR=/usr/share/fonts:/usr/share/fonts/truetype/lm
 
 WORKDIR /app
 
@@ -51,6 +54,7 @@ RUN go build -o compiler-service .
 # Initialize LuaLaTeX font cache as root first, then fix permissions
 RUN TEXMFCACHE=/var/cache/luaotfload LUAOTFLOAD_CACHEDIR=/var/cache/luaotfload luaotfload-tool --update --force || true
 RUN chown -R texuser:texuser /var/cache/luaotfload
+RUN fc-cache -fv || true
 
 USER texuser
 
