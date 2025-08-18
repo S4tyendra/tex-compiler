@@ -3,24 +3,6 @@
 % For images
 \usepackage{graphicx}
 
-% For custom fonts (XeTeX/LuaTeX only)
-\usepackage{fontspec}
-
-% Font selections - using default fonts available in Alpine TeX Live
-% Use default Computer Modern fonts (always available)
-\setmainfont{Latin Modern Roman}
-\setsansfont{Latin Modern Sans}
-\setmonofont{Latin Modern Mono}
-
-% Custom font families using default fonts
-\newfontfamily\titlefont{Latin Modern Sans}[
-    Scale=1.2
-]
-
-\newfontfamily\codefont{Latin Modern Mono}[
-    Scale=0.9
-]
-
 % For custom margins
 \usepackage[left=1.5in, right=1.5in, top=1in, bottom=1in]{geometry}
 
@@ -35,8 +17,12 @@
 \usepackage{xcolor}
 \definecolor{codeblue}{RGB}{0,102,204}
 
-\title{{\titlefont My Awesome Document}}
-\author{{\sffamily Satyendra}}
+% Use Latin Modern fonts (available in PDFLaTeX)
+\usepackage{lmodern}
+\usepackage[T1]{fontenc}
+
+\title{\textsc{My Awesome Document}}
+\author{\textsf{Satyendra}}
 \date{\today}
 
 \begin{document}
@@ -55,21 +41,21 @@ This document showcases various font capabilities:
 \begin{itemize}
     \item \textbf{Bold text} for emphasis
     \item \textit{Italic text} for style  
-    \item {\sffamily Sans-serif text} for modern elements
-    \item {\ttfamily Monospace text} for technical content
+    \item \textsf{Sans-serif text} for modern elements
+    \item \texttt{Monospace text} for technical content
     \item \textsc{Small Caps} for elegance
 \end{itemize}
 
 \section{Technical Implementation}
 
-The microservice architecture allows for scalable document compilation, supporting multiple LaTeX engines including **PDFTeX**, **XeTeX**, and **LuaTeX**.
+The microservice architecture allows for scalable document compilation, supporting multiple LaTeX engines including \textbf{PDFTeX}, \textbf{XeTeX}, and \textbf{LuaTeX}.
 
 \subsection{Supported Engines}
 
 \begin{description}
-    \item[{\sffamily\textbf{PDFTeX}}] Traditional LaTeX engine with standard font support
-    \item[{\sffamily\textbf{XeTeX}}] Unicode-aware engine with full fontspec capabilities  
-    \item[{\sffamily\textbf{LuaTeX}}] Lua-scriptable engine with advanced typography features
+    \item[\textsf{\textbf{PDFTeX}}] Traditional LaTeX engine with standard font support
+    \item[\textsf{\textbf{XeTeX}}] Unicode-aware engine with full fontspec capabilities  
+    \item[\textsf{\textbf{LuaTeX}}] Lua-scriptable engine with advanced typography features
 \end{description}
 
 \subsection{Code Example}
@@ -77,7 +63,7 @@ The microservice architecture allows for scalable document compilation, supporti
 Here's how to use the compilation service:
 
 \begin{quote}
-{\codefont\color{codeblue}
+{\ttfamily\color{codeblue}
 \begin{verbatim}
 # Compile with different engines
 ./compile.sh pdflatex    # Standard compilation
@@ -100,7 +86,7 @@ Here is an image:
 \begin{figure}[h!]
 \centering
 \includegraphics[width=0.5\textwidth]{w3c_home.png}
-\caption{{\sffamily The W3C Logo - Demonstrating Image Integration}}
+\caption{\textsf{The W3C Logo - Demonstrating Image Integration}}
 \label{fig:w3c}
 \end{figure}
 
@@ -110,14 +96,14 @@ As shown in Figure~\ref{fig:w3c}, the system handles images seamlessly across al
 
 This document is designed to work optimally with:
 \begin{itemize}
-    \item {\textbf{XeTeX}} - Full font support with custom typography
-    \item {\textbf{LuaTeX}} - Advanced typographic features  
-    \item {\textbf{PDFTeX}} - Fallback to default fonts (fontspec ignored)
+    \item \textbf{XeTeX} - Full font support with custom typography
+    \item \textbf{LuaTeX} - Advanced typographic features  
+    \item \textbf{PDFTeX} - Fallback to default fonts (fontspec ignored)
 \end{itemize}
 
 \section{Conclusion}
 
-{\sffamily This system demonstrates effective integration of LaTeX compilation services with modern DevOps practices, enhanced with professional typography capabilities.}
+\textsf{This system demonstrates effective integration of LaTeX compilation services with modern DevOps practices, enhanced with professional typography capabilities.}
 
 The multi-pass compilation ensures proper citation resolution and bibliography generation across all supported engines.
 
