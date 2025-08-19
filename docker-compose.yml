@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   api:
-    build: ./api
+    image: ghcr.io/s4tyendra/tex-api:latest
     ports:
       - "8080:8080"
     volumes:
@@ -22,10 +22,10 @@ services:
     restart: unless-stopped
 
   compiler:
-    build: ./compiler
+    image: ghcr.io/s4tyendra/tex-compiler:latest
     ports:
       - "8081:8081"
-    mem_limit: 512m
+    mem_limit: 256m
     restart: unless-stopped
 
   redis:
