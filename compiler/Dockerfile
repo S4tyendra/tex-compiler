@@ -1,49 +1,47 @@
 # Stage 1: Build Go binary
-FROM golang:1.22-alpine AS builder
+FROM golang:1.22 AS builder
 
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags='-w -s' -o compiler-service .
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o compiler-service .
 
-# Stage 2: TeX runtime (smaller base)
-FROM alpine:3.20
+# Stage 2: Full TeX Live runtime
+FROM texlive/texlive:latest
 
-# Install essential TeX packages including fontspec
-RUN apk add --no-cache \
-    texlive \
-    texlive-xetex \
-    texlive-luatex \
-    fontconfig \
+# Install extras not in texlive/texlive image (biber, fontconfig, etc.)
+RUN apt-get update && apt-get install -y --no-install-recommends \
     biber \
-    && rm -rf /var/cache/apk/*
+    fontconfig \
+    && rm -rf /var/lib/apt/lists/*
 
-# Create user and directories
-RUN adduser -D -s /bin/sh -u 1001 texuser \
-    && mkdir -p /home/texuser/.texlive2024/texmf-var \
-    && mkdir -p /var/cache/luaotfload \
+# Create non-root user and setup cache directories
+RUN useradd -m -u 1001 texuser \
     && mkdir -p /tmp/latex-work \
-    && chown -R texuser:texuser /home/texuser \
+    && mkdir -p /home/texuser/.cache/luaotfload \
+    && mkdir -p /home/texuser/.texlive2025/texmf-var \
+    && mkdir -p /var/cache/luaotfload \
     && chown -R texuser:texuser /tmp/latex-work \
+    && chown -R texuser:texuser /home/texuser \
     && chown -R texuser:texuser /var/cache/luaotfload \
-    && chmod -R 777 /var/cache/luaotfload
+    && chmod -R 755 /home/texuser/.cache \
+    && chmod -R 755 /var/cache/luaotfload
 
-# Set TeX environment
 ENV HOME=/home/texuser \
-    TEXMFVAR=/home/texuser/.texlive2024/texmf-var \
-    TEXMFCACHE=/var/cache/luaotfload \
-    LUAOTFLOAD_CACHEDIR=/var/cache/luaotfload \
-    OSFONTDIR=/usr/share/fonts
+    OSFONTDIR=/usr/share/fonts \
+    TEXMFHOME=/home/texuser/.texlive2025/texmf \
+    TEXMFVAR=/home/texuser/.texlive2025/texmf-var \
+    TEXMFCACHE=/home/texuser/.cache/luaotfload \
+    LUAOTFLOAD_CACHEDIR=/home/texuser/.cache/luaotfload
 
-# Copy binary from builder stage
+# Copy Go binary
 COPY --from=builder /src/compiler-service /app/compiler-service
 
-# Initialize font cache (run as root, then fix ownership)
-RUN luaotfload-tool --update --force || true \
-    && fc-cache -fv || true \
-    && chown -R texuser:texuser /var/cache/luaotfload
+# Initialize LuaTeX font cache as root, then fix ownership
+RUN runuser -u texuser -- luaotfload-tool --update --force || true \
+    && chown -R texuser:texuser /home/texuser/.cache
 
 USER texuser
 WORKDIR /app
