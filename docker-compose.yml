@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  tex-compiler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tex-compiler-service
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    
+    # Resource limits for security and performance
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '2.0'
+        reservations:
+          memory: 512M
+          cpus: '1.0'
+    
+    # Environment variables
+    environment:
+      - GIN_MODE=release
+    
+    # Security settings
+    security_opt:
+      - no-new-privileges:true
+    read_only: false  # Need write access for temporary compilation files
+    tmpfs:
+      - /tmp:rw,size=500M,mode=1777
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
