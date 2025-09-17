@@ -105,19 +105,11 @@ function CodeTabsContent({
 
 function CodeTabs({
   codes,
-  lang = 'bash',
-
-  themes = {
-    light: 'Vitesse Light',
-    dark: 'Material Theme',
-  },
 
   className,
   defaultValue,
   value,
   onValueChange,
-  copyButton = true,
-  onCopy,
   ...props
 }) {
   const firstKey = React.useMemo(() => Object.keys(codes)[0] ?? '', [codes]);
@@ -133,12 +125,7 @@ function CodeTabs({
       className={cn('w-full gap-0 bg-muted/50 rounded-xl border overflow-hidden', className)}
       {...tabsProps}
       {...props}>
-      <CodeTabsContent
-        codes={codes}
-        lang={lang}
-        themes={themes}
-        copyButton={copyButton}
-        onCopy={onCopy} />
+      <MonacoEditorContent codes={codes} {...props} />
     </Tabs>
   );
 }
