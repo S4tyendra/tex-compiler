@@ -13,27 +13,33 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar"
 import CodeEditor from './components/code-editor'
+import { useState } from 'react'
 
 export default function App() {
+  const [selectedFile, setSelectedFile] = useState('/main.tex')
+  
   return (
     <ThemeProvider attribute="class">
       <SidebarProvider>
-        <FilesNavigation />
-        <SidebarInset>
-          <div className="flex-wrap lg:flex-nowrap flex gap-2 not-prose p-4">
-            <ResizablePanelGroup direction="horizontal">
-              <ResizablePanel>
-                <CodeEditor />
+        <FilesNavigation onFileSelect={setSelectedFile} />
+        <SidebarInset className="h-screen">
+          <div className="h-full flex flex-col">
+            <ResizablePanelGroup direction="horizontal" className="h-full">
+              <ResizablePanel defaultSize={50} minSize={20}>
+                <div className="h-full w-full">
+                  <CodeEditor selectedFile={selectedFile} />
+                </div>
               </ResizablePanel>
               <ResizableHandle withHandle />
-              <ResizablePanel>
-
+              <ResizablePanel defaultSize={50} minSize={20}>
+                <div className="h-full w-full bg-gray-50 dark:bg-gray-900 flex items-center justify-center text-muted-foreground">
+                  PDF Preview (Coming Soon)
+                </div>
               </ResizablePanel>
             </ResizablePanelGroup>
           </div>
         </SidebarInset>
         <SidebarTrigger className="absolute bottom-4 left-4 z-50" />
-
       </SidebarProvider>
     </ThemeProvider>
   )
