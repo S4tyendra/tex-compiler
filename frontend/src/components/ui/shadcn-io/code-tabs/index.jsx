@@ -125,7 +125,7 @@ function CodeTabs({
       className={cn('w-full gap-0 bg-muted/50 rounded-xl border overflow-hidden', className)}
       {...tabsProps}
       {...props}>
-      <MonacoEditorContent codes={codes} {...props} />
+      {/* <MonacoEditorContent codes={codes} {...props} /> */}
     </Tabs>
   );
 }
