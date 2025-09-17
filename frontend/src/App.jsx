@@ -1,6 +1,7 @@
 import { Card } from 'actify'
 import { AspectRatio } from "@/components/ui/aspect-ratio"
 import { FilesNavigation } from "@/components/files-navigation"
+import { ThemeProvider, useTheme } from "next-themes";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -43,6 +44,7 @@ import CodeEditor from './components/code-editor'
 
 export default function App() {
   return (
+        <ThemeProvider attribute="class">
     <SidebarProvider>
       <FilesNavigation />
       <SidebarInset>
@@ -60,5 +62,6 @@ export default function App() {
         </div>
       </SidebarInset>
     </SidebarProvider>
+    </ThemeProvider>
   )
 }

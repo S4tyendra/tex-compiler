@@ -25,6 +25,18 @@ const CODES = {
     }
   }
 }`,
+Windsurf2: `// Copy and paste the code into .codeium/windsurf/mcp_config.json
+{
+  "mcpServers": {
+    "shadcn": {
+      "command": "npx",
+      "args": ["-y", "shadcn@canary", "registry:mcp"],
+      "env": {
+        "REGISTRY_URL": "https://animate-ui.com/r/registry.json"
+      }
+    }
+  }
+}`,
 };
 
 export default function CodeEditor() {

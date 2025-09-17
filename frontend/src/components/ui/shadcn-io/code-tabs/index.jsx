@@ -11,8 +11,8 @@ function CodeTabsContent({
   lang = 'bash',
 
   themes = {
-    light: 'github-light',
-    dark: 'github-dark',
+    light: 'Vitesse Light',
+    dark: 'Material Theme',
   },
 
   copyButton = true,
@@ -20,6 +20,9 @@ function CodeTabsContent({
 }) {
   const { resolvedTheme } = useTheme();
   const { activeValue } = useTabs();
+
+  console.log('Resolved Theme:', resolvedTheme);
+  console.log('Active Tab:', activeValue);
 
   const [highlightedCodes, setHighlightedCodes] = React.useState(codes); // Start with raw codes for instant rendering
 
@@ -84,12 +87,12 @@ function CodeTabsContent({
             className="w-full text-sm flex items-center p-4 overflow-auto"
             value={code}>
             <div
-              className="w-full [&>pre]:m-0 [&>pre]:p-0 [&>pre]:bg-transparent [&>pre]:border-none [&>pre]:text-[13px] [&>pre]:leading-relaxed [&_code]:text-[13px] [&_code]:leading-relaxed [&_code]:bg-transparent">
+              className="w-full [&>pre]:m-0 [&>pre]:p-0 [&>pre]:bg-muted [&>pre]:border-none [&>pre]:text-[13px] [&>pre]:leading-relaxed [&_code]:text-[13px] [&_code]:leading-relaxed [&_code]:bg-transparent">
               {highlightedCodes[code] !== rawCode ? (
                 <div dangerouslySetInnerHTML={{ __html: highlightedCodes[code] }} />
               ) : (
-                <pre>
-                  <code>{rawCode}</code>
+                <pre className='rounded-2xl'>
+                  <code className='rounded-2xl'>{rawCode}</code>
                 </pre>
               )}
             </div>
@@ -105,8 +108,8 @@ function CodeTabs({
   lang = 'bash',
 
   themes = {
-    light: 'github-light',
-    dark: 'github-dark',
+    light: 'Vitesse Light',
+    dark: 'Material Theme',
   },
 
   className,
