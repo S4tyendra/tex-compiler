@@ -28,6 +28,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy the compiled Go binary from builder stage
 COPY --from=builder /app/tex-compiler /usr/local/bin/tex-compiler
 
+# Copy the built frontend dist directory
+COPY dist/ /app/dist/
+
 # Create necessary directories with proper permissions
 RUN mkdir -p /app/processing /app/output/logs /app/output/files \
     && chmod -R 755 /app
