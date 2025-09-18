@@ -21,8 +21,8 @@ import (
 
 // Constants
 const (
-	CompilationTimeout = 30 * time.Second
-	MaxConcurrentJobs  = 3
+	CompilationTimeout = 15 * time.Second
+	MaxConcurrentJobs  = 5
 	WorkDir            = "/app/processing"
 	OutputDir          = "/app/output"
 	LogsDir            = "/app/output/logs"

@@ -94,12 +94,22 @@ export default function App() {
       const allFiles = await fileStorage.getAllFiles()
       
       setCompilationProgress(prev => ({ ...prev, stage: 'Zipping project...' }))
-      await new Promise(resolve => setTimeout(resolve, 300)) // Small delay to show progress
+      await new Promise(resolve => setTimeout(resolve, 200)) // Small delay to show progress
       
       setCompilationProgress(prev => ({ ...prev, stage: 'Uploading...' }))
       const apiResponse = await compilerService.compileProject(allFiles, mainFile, compiler)
       
+      // Handle server errors
+      if (apiResponse.error) {
+        throw new Error(apiResponse.message || apiResponse.error)
+      }
+      
       if (apiResponse.job_id) {
+        setCompilationProgress(prev => ({ ...prev, stage: 'Compiling...' }))
+        
+        // Small delay to show compiling stage
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
         setCompilationProgress(prev => ({ ...prev, stage: apiResponse.success ? 'Fetching PDF...' : 'Fetching logs...' }))
         
         // This now fetches artifacts and saves them to IndexedDB
@@ -125,16 +135,28 @@ export default function App() {
         }
         
         return fullRecord
+      } else {
+        throw new Error('No job ID received from server')
       }
     } catch (error) {
       console.error('Compilation failed:', error)
-      setCompilationProgress({ isCompiling: false, stage: '', hasQueuedCompilation: false })
+      setCompilationProgress({ 
+        isCompiling: false, 
+        stage: '', 
+        hasQueuedCompilation: false,
+        error: error.message || 'Compilation failed'
+      })
+      
+      // Clear error after 5 seconds
+      setTimeout(() => {
+        setCompilationProgress(prev => ({ ...prev, error: null }))
+      }, 5000)
       
       // Process queued compilation even if current one failed
       if (queuedCompilationRef.current) {
         const queued = queuedCompilationRef.current
         queuedCompilationRef.current = null
-        setTimeout(() => handleCompile(queued.mainFile, queued.compiler, true), 500)
+        setTimeout(() => handleCompile(queued.mainFile, queued.compiler, true), 1000)
       }
       
       throw error

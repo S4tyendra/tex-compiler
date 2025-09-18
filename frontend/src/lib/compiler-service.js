@@ -49,11 +49,28 @@ class CompilerService {
       
       const result = await response.json();
       
+      // Handle HTTP errors
+      if (!response.ok) {
+        throw new Error(result.message || result.error || `HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      // Handle server errors in response
+      if (result.error) {
+        throw new Error(result.message || result.error);
+      }
+      
       // Return the result directly - we'll fetch PDF/logs later if needed
       return result;
     } catch (error) {
       console.error('Compilation error:', error);
-      throw error;
+      // Re-throw with better error message
+      if (error.message.includes('Server overloaded') || error.message.includes('Maximum')) {
+        throw new Error('Server is busy - please try again in a moment');
+      } else if (error.message.includes('Failed to fetch')) {
+        throw new Error('Network error - check your connection');
+      } else {
+        throw error;
+      }
     }
   }
   
@@ -126,15 +143,23 @@ class CompilerService {
     try {
       // Fetch PDF and logs immediately from the server's temporary URLs
       if (compilationData.success && compilationData.pdf_url) {
-        const pdfResponse = await fetch(`${API_BASE}${compilationData.pdf_url}`);
-        if (pdfResponse.ok) {
-          pdfBlob = await pdfResponse.blob();
+        try {
+          const pdfResponse = await fetch(`${API_BASE}${compilationData.pdf_url}`);
+          if (pdfResponse.ok) {
+            pdfBlob = await pdfResponse.blob();
+          }
+        } catch (error) {
+          console.warn('Failed to fetch PDF:', error);
         }
       }
       if (compilationData.logs_url) {
-        const logsResponse = await fetch(`${API_BASE}${compilationData.logs_url}`);
-        if (logsResponse.ok) {
-          logsText = await logsResponse.text();
+        try {
+          const logsResponse = await fetch(`${API_BASE}${compilationData.logs_url}`);
+          if (logsResponse.ok) {
+            logsText = await logsResponse.text();
+          }
+        } catch (error) {
+          console.warn('Failed to fetch logs:', error);
         }
       }
     } catch (error) {

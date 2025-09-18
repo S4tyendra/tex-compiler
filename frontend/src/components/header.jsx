@@ -27,7 +27,8 @@ import {
   Info,
   Calendar,
   Settings,
-  Loader2
+  Loader2,
+  XCircle
 } from "lucide-react";
 
 export default function Header({ onCompile, autoCompile, onAutoCompileChange, onFileChange, compilationProgress }) {
@@ -126,6 +127,11 @@ export default function Header({ onCompile, autoCompile, onAutoCompileChange, on
   const handleCompile = async () => {
     if (compilationProgress?.isCompiling || !selectedMainFile) return;
     
+    // Check if server is busy before attempting compilation
+    if (health?.running_jobs >= health?.max_concurrent) {
+      return; // Don't attempt compilation if server is busy
+    }
+    
     setIsCompiling(true);
     try {
       await onCompile?.(selectedMainFile, selectedCompiler);
@@ -158,15 +164,28 @@ export default function Header({ onCompile, autoCompile, onAutoCompileChange, on
         
         <Button 
           onClick={handleCompile} 
-          disabled={compilationProgress?.isCompiling || !selectedMainFile}
+          disabled={compilationProgress?.isCompiling || !selectedMainFile || (health?.running_jobs >= health?.max_concurrent)}
           size="sm" 
           className="gap-2"
+          variant={compilationProgress?.error ? "destructive" : "default"}
         >
           {compilationProgress?.isCompiling ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
               <span className="hidden sm:inline">{compilationProgress.stage}</span>
               <span className="sm:hidden">Compiling...</span>
+            </>
+          ) : compilationProgress?.error ? (
+            <>
+              <XCircle className="h-4 w-4" />
+              <span className="hidden sm:inline">Error</span>
+              <span className="sm:hidden">Error</span>
+            </>
+          ) : (health?.running_jobs >= health?.max_concurrent) ? (
+            <>
+              <AlertTriangle className="h-4 w-4" />
+              <span className="hidden sm:inline">Server Busy</span>
+              <span className="sm:hidden">Busy</span>
             </>
           ) : (
             <>
@@ -186,6 +205,15 @@ export default function Header({ onCompile, autoCompile, onAutoCompileChange, on
           {autoCompile ? <ToggleRight className="h-4 w-4 text-green-400" /> : <ToggleLeft className="h-4 w-4" />}
           <span className="hidden sm:inline">Auto</span>
         </Button>
+
+        {/* Error/Status messages */}
+        {compilationProgress?.error && (
+          <div className="flex items-center gap-1 text-sm text-red-500 bg-red-50 dark:bg-red-950 px-2 py-1 rounded">
+            <XCircle className="h-3 w-3" />
+            <span className="hidden sm:inline truncate max-w-40">{compilationProgress.error}</span>
+            <span className="sm:hidden">Error</span>
+          </div>
+        )}
 
         {/* Queue indicator */}
         {compilationProgress?.hasQueuedCompilation && (
