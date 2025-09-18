@@ -261,7 +261,7 @@ export default function EnhancedCodeEditor({ selectedFile, onFileSelect }) {
 
   return (
     <div className="h-full w-full flex flex-col">
-      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full h-full">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full flex flex-col flex-1">
         {/* Tab Headers */}
         <div className="flex items-center border-b bg-background flex-shrink-0">
           <TabsList className="h-auto bg-transparent border-none rounded-none flex-1">

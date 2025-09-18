@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger, TabsContents, useTabs } from 
 // Custom debounce implementation
 const useDebounce = (callback, delay) => {
   const timeoutRef = React.useRef(null);
-  
+
   const debouncedCallback = React.useCallback((...args) => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
@@ -17,7 +17,7 @@ const useDebounce = (callback, delay) => {
       callback(...args);
     }, delay);
   }, [callback, delay]);
-  
+
   React.useEffect(() => {
     return () => {
       if (timeoutRef.current) {
@@ -25,7 +25,7 @@ const useDebounce = (callback, delay) => {
       }
     };
   }, []);
-  
+
   return debouncedCallback;
 };
 
@@ -33,50 +33,50 @@ const useDebounce = (callback, delay) => {
 const latexKeywords = [
   // Document structure
   'documentclass', 'usepackage', 'begin', 'end', 'input', 'include', 'includeonly',
-  
+
   // Sectioning
   'part', 'chapter', 'section', 'subsection', 'subsubsection', 'paragraph', 'subparagraph',
-  
+
   // Document metadata
   'title', 'author', 'date', 'maketitle', 'thanks', 'and',
-  
+
   // Text formatting
   'textbf', 'textit', 'texttt', 'textsc', 'textsl', 'textsf', 'textrm', 'textup', 'textmd',
   'emph', 'underline', 'overline', 'sout', 'uline', 'uuline', 'uwave',
   'tiny', 'scriptsize', 'footnotesize', 'small', 'normalsize', 'large', 'Large', 'LARGE', 'huge', 'Huge',
-  
+
   // Math mode
   'equation', 'align', 'gather', 'multline', 'split', 'cases', 'matrix', 'pmatrix', 'bmatrix', 'vmatrix', 'Vmatrix',
   'frac', 'dfrac', 'tfrac', 'sqrt', 'sum', 'prod', 'int', 'oint', 'iint', 'iiint',
   'lim', 'sup', 'inf', 'max', 'min', 'arg', 'det', 'exp', 'ln', 'log', 'sin', 'cos', 'tan',
   'arcsin', 'arccos', 'arctan', 'sinh', 'cosh', 'tanh', 'sec', 'csc', 'cot',
-  
+
   // Greek letters
   'alpha', 'beta', 'gamma', 'delta', 'epsilon', 'varepsilon', 'zeta', 'eta', 'theta', 'vartheta',
   'iota', 'kappa', 'lambda', 'mu', 'nu', 'xi', 'pi', 'varpi', 'rho', 'varrho', 'sigma', 'varsigma',
   'tau', 'upsilon', 'phi', 'varphi', 'chi', 'psi', 'omega',
   'Gamma', 'Delta', 'Theta', 'Lambda', 'Xi', 'Pi', 'Sigma', 'Upsilon', 'Phi', 'Psi', 'Omega',
-  
+
   // Lists and environments
   'itemize', 'enumerate', 'description', 'item', 'trivlist',
   'quote', 'quotation', 'verse', 'verbatim', 'flushleft', 'flushright', 'center',
-  
+
   // Tables and figures
   'table', 'figure', 'tabular', 'longtable', 'array', 'includegraphics', 'caption', 'label',
   'hline', 'cline', 'multicolumn', 'multirow',
-  
+
   // References and citations
   'cite', 'citet', 'citep', 'citeauthor', 'citeyear', 'ref', 'eqref', 'pageref', 'nameref',
   'bibliography', 'bibliographystyle', 'bibitem',
-  
+
   // Spacing and layout
   'newpage', 'clearpage', 'cleardoublepage', 'pagebreak', 'nopagebreak', 'linebreak', 'nolinebreak',
   'newline', 'hspace', 'vspace', 'hfill', 'vfill', 'smallskip', 'medskip', 'bigskip',
   'noindent', 'indent', 'par', 'parbox', 'minipage',
-  
+
   // Cross-references
   'tableofcontents', 'listoffigures', 'listoftables', 'appendix', 'index', 'glossary',
-  
+
   // Special characters and symbols
   'textbackslash', 'textbar', 'textless', 'textgreater', 'textasciitilde', 'textasciicircum',
   'textquoteleft', 'textquoteright', 'textquotedblleft', 'textquotedblright',
@@ -89,7 +89,7 @@ const bibKeywords = [
   'article', 'book', 'booklet', 'conference', 'inbook', 'incollection', 'inproceedings',
   'manual', 'mastersthesis', 'misc', 'phdthesis', 'proceedings', 'techreport', 'unpublished',
   'online', 'thesis', 'collection', 'patent', 'report', 'software', 'dataset',
-  
+
   // Standard fields
   'author', 'title', 'journal', 'year', 'volume', 'number', 'pages', 'month', 'note',
   'publisher', 'address', 'editor', 'booktitle', 'chapter', 'school', 'institution',
@@ -138,14 +138,14 @@ function MonacoEditorContent({ content, language, onChange, fileName, readOnly =
 
   const handleEditorDidMount = (editor, monaco) => {
     editorRef.current = editor;
-    
+
     // Add keyboard shortcuts
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
       if (onSave) {
         onSave(editor.getValue());
       }
     });
-    
+
     if (!isLanguageRegistered) {
       // Enhanced LaTeX language definition with better tokenization
       monaco.languages.register({ id: 'latex' });
@@ -157,44 +157,44 @@ function MonacoEditorContent({ content, language, onChange, fileName, readOnly =
             [/\\[a-zA-Z@]+\*?(?=\s*\{)/, 'keyword', '@command_with_required'],
             [/\\[a-zA-Z@]+\*?/, 'keyword'],
             [/\\[^a-zA-Z@]/, 'keyword'],
-            
+
             // Environments with highlighting
             [/\\begin\{([^}]+)\}/, { token: 'keyword.control', next: '@environment.$1' }],
             [/\\end\{([^}]+)\}/, 'keyword.control'],
-            
+
             // Math delimiters with proper nesting
             [/\$\$/, 'string.delimiter', '@mathDisplay'],
             [/\$/, 'string.delimiter', '@mathInline'],
             [/\\\[/, 'string.delimiter', '@mathDisplayBracket'],
             [/\\\(/, 'string.delimiter', '@mathInlineBracket'],
-            
+
             // Braces and brackets with nesting
             [/\{/, 'delimiter.curly', '@braces'],
             [/\[/, 'delimiter.square', '@brackets'],
-            
+
             // Comments
             [/%.*$/, 'comment'],
-            
+
             // Special characters
             [/[&_^~]/, 'keyword.operator'],
-            
+
             // Numbers
             [/\b\d+(\.\d+)?\b/, 'number'],
           ],
-          
+
           command_with_optional: [
             [/\[/, 'delimiter.square', '@brackets'],
             [/\{/, 'delimiter.curly', '@braces'],
             [/[^\[\{\s]+/, '', '@pop'],
             [/\s+/, '', '@pop']
           ],
-          
+
           command_with_required: [
             [/\{/, 'delimiter.curly', '@braces'],
             [/[^\{\s]+/, '', '@pop'],
             [/\s+/, '', '@pop']
           ],
-          
+
           environment: [
             [/\\end\{$S2\}/, { token: 'keyword.control', next: '@pop' }],
             [/\\[a-zA-Z@]+/, 'keyword'],
@@ -203,7 +203,7 @@ function MonacoEditorContent({ content, language, onChange, fileName, readOnly =
             [/%.*$/, 'comment'],
             [/./, 'text']
           ],
-          
+
           mathDisplay: [
             [/\$\$/, 'string.delimiter', '@pop'],
             [/\\[a-zA-Z@]+/, 'keyword.math'],
@@ -211,7 +211,7 @@ function MonacoEditorContent({ content, language, onChange, fileName, readOnly =
             [/[a-zA-Z]+/, 'variable.math'],
             [/./, 'string']
           ],
-          
+
           mathInline: [
             [/\$/, 'string.delimiter', '@pop'],
             [/\\[a-zA-Z@]+/, 'keyword.math'],
@@ -219,7 +219,7 @@ function MonacoEditorContent({ content, language, onChange, fileName, readOnly =
             [/[a-zA-Z]+/, 'variable.math'],
             [/./, 'string']
           ],
-          
+
           mathDisplayBracket: [
             [/\\\]/, 'string.delimiter', '@pop'],
             [/\\[a-zA-Z@]+/, 'keyword.math'],
@@ -227,7 +227,7 @@ function MonacoEditorContent({ content, language, onChange, fileName, readOnly =
             [/[a-zA-Z]+/, 'variable.math'],
             [/./, 'string']
           ],
-          
+
           mathInlineBracket: [
             [/\\\)/, 'string.delimiter', '@pop'],
             [/\\[a-zA-Z@]+/, 'keyword.math'],
@@ -235,7 +235,7 @@ function MonacoEditorContent({ content, language, onChange, fileName, readOnly =
             [/[a-zA-Z]+/, 'variable.math'],
             [/./, 'string']
           ],
-          
+
           braces: [
             [/\{/, 'delimiter.curly', '@braces'],
             [/\}/, 'delimiter.curly', '@pop'],
@@ -243,7 +243,7 @@ function MonacoEditorContent({ content, language, onChange, fileName, readOnly =
             [/%.*$/, 'comment'],
             [/./, 'text']
           ],
-          
+
           brackets: [
             [/\[/, 'delimiter.square', '@brackets'],
             [/\]/, 'delimiter.square', '@pop'],
@@ -263,7 +263,7 @@ function MonacoEditorContent({ content, language, onChange, fileName, readOnly =
             [/\{/, 'delimiter.curly', '@entry'],
             [/%.*$/, 'comment'],
           ],
-          
+
           entry: [
             [/\}/, 'delimiter.curly', '@pop'],
             [/[a-zA-Z][a-zA-Z0-9_-]*\s*=/, 'attribute.name'],
@@ -379,7 +379,7 @@ function MonacoEditorContent({ content, language, onChange, fileName, readOnly =
 
           // Entry type completions
           if (textUntilPosition.endsWith('@')) {
-            suggestions.push(...bibKeywords.filter(k => 
+            suggestions.push(...bibKeywords.filter(k =>
               ['article', 'book', 'inproceedings', 'misc', 'phdthesis', 'mastersthesis', 'techreport'].includes(k)
             ).map(entry => ({
               label: entry,
@@ -393,7 +393,7 @@ function MonacoEditorContent({ content, language, onChange, fileName, readOnly =
 
           // Field completions
           if (textUntilPosition.match(/^\s*[a-zA-Z]*$/)) {
-            suggestions.push(...bibKeywords.filter(k => 
+            suggestions.push(...bibKeywords.filter(k =>
               !['article', 'book', 'inproceedings', 'misc', 'phdthesis', 'mastersthesis', 'techreport'].includes(k)
             ).map(field => ({
               label: field,
@@ -444,14 +444,16 @@ function MonacoEditorContent({ content, language, onChange, fileName, readOnly =
   };
 
   return (
-    <div style={{ height: '100%', width: '100%' }}>
+    <div
+      // style={{ height: '100%', width: '100%' }}
+      className='h-full w-full flex flex-col'>
       <Editor
-        height="100%"
-        width="100%"
+        height="100vh"
+        width="100vh"
         style={{ borderRadius: '8px', height: '100%', width: '100%' }}
         language={language === 'latex' ? 'latex' : language === 'bibtex' ? 'bibtex' : language}
         value={content || ''}
-        theme={theme === 'dark' ? 'vs-dark' : 'vs'}
+        theme={editorTheme}
         onChange={handleEditorChange}
         onMount={handleEditorDidMount}
         options={{
