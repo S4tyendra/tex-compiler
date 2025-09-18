@@ -27,17 +27,29 @@ export default function App() {
       const result = await compilerService.compileProject(allFiles, mainFile, compiler);
       console.log('Compilation result:', result);
       
-      // Update state with the result that includes fetched PDF and logs
-      setLastCompilation(result);
+      // Save compilation to storage and update state
+      if (result) {
+        const compilationData = {
+          job_id: result.job_id,
+          success: result.success,
+          message: result.message,
+          logs_url: result.logs_url,
+          pdf_url: result.pdf_url,
+          mainFile,
+          compiler,
+          timestamp: new Date().toISOString()
+        };
+        
+        await compilerService.addCompilation(compilationData);
+        setLastCompilation(compilationData);
+      }
       
       return result;
     } catch (error) {
       console.error('Compilation failed:', error);
       throw error;
     }
-  };
-  
-  return (
+  };  return (
     <ThemeProvider attribute="class">
       <SidebarProvider>
         <FilesNavigation onFileSelect={setSelectedFile} />
