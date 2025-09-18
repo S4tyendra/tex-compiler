@@ -59,6 +59,7 @@ export default function Header({ onCompile }) {
   useEffect(() => {
     const loadFiles = async () => {
       try {
+        await fileStorage.init(); // Ensure database is initialized
         const allFiles = await fileStorage.getAllFiles();
         const texFiles = allFiles
           .filter(file => file.type === 'file' && file.name.endsWith('.tex'))
@@ -166,8 +167,8 @@ export default function Header({ onCompile }) {
 
       {/* Compiler and File Selection */}
       <div className="flex items-center gap-3">
-        {/* File Selection - only show if multiple files */}
-        {files.length > 1 && (
+        {/* File Selection - only show if 2 or more files */}
+        {files.length >= 2 && (
           <Select 
             value={selectedMainFile} 
             onValueChange={(value) => updateSettings('defaultFile', value)}

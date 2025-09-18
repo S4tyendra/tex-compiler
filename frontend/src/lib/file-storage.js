@@ -169,10 +169,16 @@ Write your content here.
   }
 
   async getFile(path) {
+    if (!this.db) {
+      await this.init();
+    }
     return await this.db.get(STORE_NAME, createFileId(path));
   }
 
   async getAllFiles() {
+    if (!this.db) {
+      await this.init();
+    }
     return await this.db.getAll(STORE_NAME);
   }
 
