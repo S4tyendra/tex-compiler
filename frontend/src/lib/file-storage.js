@@ -39,9 +39,57 @@ export const getLanguageFromExtension = (extension) => {
       return 'markdown';
     case 'txt':
       return 'plaintext';
+    case 'js':
+    case 'jsx':
+      return 'javascript';
+    case 'ts':
+    case 'tsx':
+      return 'typescript';
+    case 'py':
+      return 'python';
+    case 'css':
+      return 'css';
+    case 'html':
+      return 'html';
+    case 'xml':
+      return 'xml';
+    case 'yaml':
+    case 'yml':
+      return 'yaml';
     default:
       return 'plaintext';
   }
+};
+
+export const EDITABLE_EXTENSIONS = [
+  'tex', 'bib', 'txt', 'md', 'json', 'js', 'jsx', 'ts', 'tsx', 'css', 'html', 'xml', 'yaml', 'yml',
+  'py', 'go', 'rs', 'c', 'cpp', 'h', 'hpp', 'java', 'kt', 'swift', 'php', 'rb', 'sh', 'bat',
+  'ps1', 'dockerfile', 'gitignore', 'toml', 'ini', 'cfg', 'conf', 'log'
+];
+
+export const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'bmp', 'ico', 'webp'];
+export const BINARY_EXTENSIONS = ['pdf', 'zip', 'tar', 'gz', 'rar', '7z', 'exe', 'dll', 'so', 'dylib'];
+
+export const isEditableFile = (filename) => {
+  const extension = getFileExtension(filename);
+  return EDITABLE_EXTENSIONS.includes(extension);
+};
+
+export const isImageFile = (filename) => {
+  const extension = getFileExtension(filename);
+  return IMAGE_EXTENSIONS.includes(extension);
+};
+
+export const isBinaryFile = (filename) => {
+  const extension = getFileExtension(filename);
+  return BINARY_EXTENSIONS.includes(extension);
+};
+
+export const getFileType = (filename) => {
+  if (isImageFile(filename)) return 'image';
+  if (isBinaryFile(filename)) return 'binary';
+  if (isEditableFile(filename)) return 'text';
+  return 'unknown';
 };
 
 // File operations
@@ -79,15 +127,18 @@ Write your content here.
     }
   }
 
-  async createFile(name, content = '', path = '/') {
+  async createFile(name, content = '', path = '/', isBase64 = false) {
     const fullPath = path === '/' ? `/${name}` : `${path}/${name}`;
+    const fileType = getFileType(name);
     const file = {
       id: createFileId(fullPath),
       name,
       content,
       path: fullPath,
       type: 'file',
-      size: new Blob([content]).size,
+      fileType,
+      isBase64,
+      size: isBase64 ? Math.ceil(content.length * 3 / 4) : new Blob([content]).size,
       created: new Date(),
       modified: new Date()
     };
@@ -195,34 +246,138 @@ Write your content here.
     await this.db.delete(STORE_NAME, createFileId(path));
   }
 
-  async uploadFiles(files) {
+  async uploadFiles(files, targetPath = '/') {
     const uploadedFiles = [];
     
     for (const file of files) {
       const extension = getFileExtension(file.name);
-      const isImage = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'bmp'].includes(extension);
-      const maxSize = isImage ? 5 * 1024 * 1024 : 1024 * 1024; // 5MB for images, 1MB for others
+      const fileType = getFileType(file.name);
+      const maxSize = fileType === 'image' ? 5 * 1024 * 1024 : 
+                     fileType === 'binary' ? 10 * 1024 * 1024 : 2 * 1024 * 1024;
       
       if (file.size > maxSize) {
-        throw new Error(`File ${file.name} is too large. Max size: ${isImage ? '5MB' : '1MB'}`);
+        const sizeLimit = fileType === 'image' ? '5MB' : 
+                         fileType === 'binary' ? '10MB' : '2MB';
+        throw new Error(`File ${file.name} is too large. Max size: ${sizeLimit}`);
       }
       
-      const content = await file.text();
-      const uploadedFile = await this.createFile(file.name, content);
+      let content;
+      let isBase64 = false;
+      
+      if (fileType === 'image' || fileType === 'binary') {
+        // Convert to base64 for binary files
+        const arrayBuffer = await file.arrayBuffer();
+        const uint8Array = new Uint8Array(arrayBuffer);
+        content = btoa(String.fromCharCode.apply(null, uint8Array));
+        isBase64 = true;
+      } else {
+        content = await file.text();
+      }
+      
+      const uploadedFile = await this.createFile(file.name, content, targetPath, isBase64);
       uploadedFiles.push(uploadedFile);
     }
     
     return uploadedFiles;
   }
 
+  async getFilePreviewData(path) {
+    const file = await this.getFile(path);
+    if (!file) throw new Error('File not found');
+    
+    const fileType = file.fileType || getFileType(file.name);
+    
+    if (fileType === 'image' && file.isBase64) {
+      const extension = getFileExtension(file.name);
+      const mimeType = `image/${extension === 'jpg' ? 'jpeg' : extension}`;
+      return {
+        type: 'image',
+        url: `data:${mimeType};base64,${file.content}`,
+        size: file.size
+      };
+    } else if (fileType === 'text') {
+      return {
+        type: 'text',
+        content: file.content,
+        language: getLanguageFromExtension(getFileExtension(file.name))
+      };
+    } else {
+      return {
+        type: 'unsupported',
+        message: `Preview not supported for ${fileType} files`,
+        size: file.size
+      };
+    }
+  }
+
   async downloadFile(path) {
     const file = await this.getFile(path);
     if (file) {
-      const blob = new Blob([file.content], { type: 'text/plain' });
+      let blob;
+      if (file.isBase64) {
+        const binaryString = atob(file.content);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        blob = new Blob([bytes]);
+      } else {
+        blob = new Blob([file.content], { type: 'text/plain' });
+      }
       saveAs(blob, file.name);
     } else {
       throw new Error('File not found');
     }
+  }
+
+  async importZipFile(zipFile) {
+    const zip = new JSZip();
+    const zipContent = await zip.loadAsync(zipFile);
+    const importedFiles = [];
+    
+    for (const [relativePath, zipEntry] of Object.entries(zipContent.files)) {
+      if (!zipEntry.dir) {
+        const fileName = relativePath.split('/').pop();
+        const folderPath = '/' + relativePath.split('/').slice(0, -1).join('/');
+        
+        // Create folder structure if needed
+        if (folderPath !== '/') {
+          const folderParts = folderPath.split('/').filter(Boolean);
+          let currentPath = '';
+          for (const part of folderParts) {
+            currentPath += '/' + part;
+            try {
+              await this.createFolder(part, currentPath.substring(0, currentPath.lastIndexOf('/')));
+            } catch (e) {
+              // Folder might already exist, continue
+            }
+          }
+        }
+        
+        const fileType = getFileType(fileName);
+        let content;
+        let isBase64 = false;
+        
+        if (fileType === 'image' || fileType === 'binary') {
+          const arrayBuffer = await zipEntry.async('arraybuffer');
+          const uint8Array = new Uint8Array(arrayBuffer);
+          content = btoa(String.fromCharCode.apply(null, uint8Array));
+          isBase64 = true;
+        } else {
+          content = await zipEntry.async('text');
+        }
+        
+        const importedFile = await this.createFile(
+          fileName, 
+          content, 
+          folderPath === '/' ? '/' : folderPath,
+          isBase64
+        );
+        importedFiles.push(importedFile);
+      }
+    }
+    
+    return importedFiles;
   }
 
   async downloadAllFiles() {
@@ -233,7 +388,18 @@ Write your content here.
       if (file.type === 'file') {
         // Remove leading slash and create folder structure
         const path = file.path.startsWith('/') ? file.path.slice(1) : file.path;
-        zip.file(path, file.content);
+        
+        if (file.isBase64) {
+          // Convert base64 back to binary for ZIP
+          const binaryString = atob(file.content);
+          const bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+          zip.file(path, bytes);
+        } else {
+          zip.file(path, file.content);
+        }
       }
     });
     

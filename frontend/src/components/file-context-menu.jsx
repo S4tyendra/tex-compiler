@@ -14,9 +14,10 @@ import {
   Trash2,
   Download,
   Upload,
-  Archive
+  Archive,
+  FileArchive,
+  Eye
 } from "lucide-react";
-import { useState } from "react";
 
 export function FileContextMenu({ 
   children, 
@@ -28,30 +29,49 @@ export function FileContextMenu({
   onCreateFile, 
   onCreateFolder,
   onUpload,
-  onDownloadAll
+  onUploadZip,
+  onDownloadAll,
+  onPreview
 }) {
+  const isFolder = file?.type === 'folder';
+  const showFolderOperations = !file || isFolder;
+
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
         {children}
       </ContextMenuTrigger>
       <ContextMenuContent className="w-64">
-        <ContextMenuItem onClick={() => onCreateFile?.()}>
-          <FilePlus className="h-4 w-4 mr-2" />
-          New File
-        </ContextMenuItem>
-        <ContextMenuItem onClick={() => onCreateFolder?.()}>
-          <FolderPlus className="h-4 w-4 mr-2" />
-          New Folder
-        </ContextMenuItem>
-        <ContextMenuSeparator />
-        <ContextMenuItem onClick={() => onUpload?.()}>
-          <Upload className="h-4 w-4 mr-2" />
-          Upload Files
-        </ContextMenuItem>
-        <ContextMenuSeparator />
+        {showFolderOperations && (
+          <>
+            <ContextMenuItem onClick={() => onCreateFile?.()}>
+              <FilePlus className="h-4 w-4 mr-2" />
+              New File
+            </ContextMenuItem>
+            <ContextMenuItem onClick={() => onCreateFolder?.()}>
+              <FolderPlus className="h-4 w-4 mr-2" />
+              New Folder
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+            <ContextMenuItem onClick={() => onUpload?.()}>
+              <Upload className="h-4 w-4 mr-2" />
+              Upload Files
+            </ContextMenuItem>
+            <ContextMenuItem onClick={() => onUploadZip?.()}>
+              <FileArchive className="h-4 w-4 mr-2" />
+              Import ZIP
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+          </>
+        )}
         {file && (
           <>
+            {!isFolder && (
+              <ContextMenuItem onClick={() => onPreview?.(file)}>
+                <Eye className="h-4 w-4 mr-2" />
+                Preview
+              </ContextMenuItem>
+            )}
             <ContextMenuItem onClick={() => onRename?.(file)}>
               <Edit className="h-4 w-4 mr-2" />
               Rename

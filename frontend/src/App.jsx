@@ -33,7 +33,8 @@ export default function App() {
               <ResizableHandle withHandle />
               <ResizablePanel defaultSize={50} minSize={20}>
                 <div className="h-full w-full bg-gray-50 dark:bg-gray-900 flex items-center justify-center text-muted-foreground">
-                  PDF Preview (Coming Soon)
+                  ... Preview Panel ...
+                  
                 </div>
               </ResizablePanel>
             </ResizablePanelGroup>
