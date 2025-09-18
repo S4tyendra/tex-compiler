@@ -5,6 +5,30 @@ import Editor from '@monaco-editor/react';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger, TabsContents, useTabs } from '@/components/ui/shadcn-io/tabs';
 
+// Custom debounce implementation
+const useDebounce = (callback, delay) => {
+  const timeoutRef = React.useRef(null);
+  
+  const debouncedCallback = React.useCallback((...args) => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    timeoutRef.current = setTimeout(() => {
+      callback(...args);
+    }, delay);
+  }, [callback, delay]);
+  
+  React.useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+  
+  return debouncedCallback;
+};
+
 // Comprehensive LaTeX keywords and commands for autocomplete
 const latexKeywords = [
   // Document structure
@@ -91,69 +115,140 @@ const latexPackages = [
   'fancyhdr', 'setspace', 'enumitem', 'listings', 'algorithm2e', 'subcaption'
 ];
 
-function MonacoEditorContent({ content, language, onChange, fileName }) {
-  const { theme } = useTheme();
+function MonacoEditorContent({ content, language, onChange, fileName, readOnly = false, onSave }) {
+  const { theme, resolvedTheme } = useTheme();
   const editorRef = React.useRef(null);
   const [isLanguageRegistered, setIsLanguageRegistered] = React.useState(false);
+  const [mounted, setMounted] = React.useState(false);
+
+  // Auto-save with debounce
+  const debouncedSave = useDebounce((value) => {
+    if (onChange && !readOnly) {
+      onChange(value);
+    }
+  }, 500);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Get the actual theme to use
+  const editorTheme = mounted ? (resolvedTheme === 'dark' ? 'vs-dark' : 'vs-light') : 'vs-light';
 
   const handleEditorDidMount = (editor, monaco) => {
     editorRef.current = editor;
     
+    // Add keyboard shortcuts
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+      if (onSave) {
+        onSave(editor.getValue());
+      }
+    });
+    
     if (!isLanguageRegistered) {
-      // Enhanced LaTeX language definition
+      // Enhanced LaTeX language definition with better tokenization
       monaco.languages.register({ id: 'latex' });
       monaco.languages.setMonarchTokensProvider('latex', {
         tokenizer: {
           root: [
-            // Commands
+            // Commands with optional arguments
+            [/\\[a-zA-Z@]+\*?(?=\s*\[)/, 'keyword', '@command_with_optional'],
+            [/\\[a-zA-Z@]+\*?(?=\s*\{)/, 'keyword', '@command_with_required'],
             [/\\[a-zA-Z@]+\*?/, 'keyword'],
             [/\\[^a-zA-Z@]/, 'keyword'],
             
-            // Environments
-            [/\\begin\{[^}]+\}/, 'keyword.control'],
-            [/\\end\{[^}]+\}/, 'keyword.control'],
+            // Environments with highlighting
+            [/\\begin\{([^}]+)\}/, { token: 'keyword.control', next: '@environment.$1' }],
+            [/\\end\{([^}]+)\}/, 'keyword.control'],
             
-            // Math delimiters
-            [/\$\$/, 'string.delimiter', '@mathDouble'],
-            [/\$/, 'string.delimiter', '@mathSingle'],
-            [/\\\[/, 'string.delimiter', '@mathDisplay'],
-            [/\\\(/, 'string.delimiter', '@mathInline'],
+            // Math delimiters with proper nesting
+            [/\$\$/, 'string.delimiter', '@mathDisplay'],
+            [/\$/, 'string.delimiter', '@mathInline'],
+            [/\\\[/, 'string.delimiter', '@mathDisplayBracket'],
+            [/\\\(/, 'string.delimiter', '@mathInlineBracket'],
             
-            // Braces and brackets
-            [/\{/, 'delimiter.curly'],
-            [/\}/, 'delimiter.curly'],
-            [/\[/, 'delimiter.square'],
-            [/\]/, 'delimiter.square'],
+            // Braces and brackets with nesting
+            [/\{/, 'delimiter.curly', '@braces'],
+            [/\[/, 'delimiter.square', '@brackets'],
             
             // Comments
             [/%.*$/, 'comment'],
             
             // Special characters
-            [/[&_^]/, 'keyword.operator'],
+            [/[&_^~]/, 'keyword.operator'],
+            
+            // Numbers
+            [/\b\d+(\.\d+)?\b/, 'number'],
           ],
           
-          mathDouble: [
-            [/\$\$/, 'string.delimiter', '@pop'],
-            [/\\[a-zA-Z@]+/, 'keyword'],
-            [/./, 'string']
+          command_with_optional: [
+            [/\[/, 'delimiter.square', '@brackets'],
+            [/\{/, 'delimiter.curly', '@braces'],
+            [/[^\[\{\s]+/, '', '@pop'],
+            [/\s+/, '', '@pop']
           ],
           
-          mathSingle: [
-            [/\$/, 'string.delimiter', '@pop'],
+          command_with_required: [
+            [/\{/, 'delimiter.curly', '@braces'],
+            [/[^\{\s]+/, '', '@pop'],
+            [/\s+/, '', '@pop']
+          ],
+          
+          environment: [
+            [/\\end\{$S2\}/, { token: 'keyword.control', next: '@pop' }],
             [/\\[a-zA-Z@]+/, 'keyword'],
-            [/./, 'string']
+            [/\$\$/, 'string.delimiter', '@mathDisplay'],
+            [/\$/, 'string.delimiter', '@mathInline'],
+            [/%.*$/, 'comment'],
+            [/./, 'text']
           ],
           
           mathDisplay: [
-            [/\\\]/, 'string.delimiter', '@pop'],
-            [/\\[a-zA-Z@]+/, 'keyword'],
+            [/\$\$/, 'string.delimiter', '@pop'],
+            [/\\[a-zA-Z@]+/, 'keyword.math'],
+            [/[{}\[\]]/, 'delimiter.math'],
+            [/[a-zA-Z]+/, 'variable.math'],
             [/./, 'string']
           ],
           
           mathInline: [
-            [/\\\)/, 'string.delimiter', '@pop'],
-            [/\\[a-zA-Z@]+/, 'keyword'],
+            [/\$/, 'string.delimiter', '@pop'],
+            [/\\[a-zA-Z@]+/, 'keyword.math'],
+            [/[{}\[\]]/, 'delimiter.math'],
+            [/[a-zA-Z]+/, 'variable.math'],
             [/./, 'string']
+          ],
+          
+          mathDisplayBracket: [
+            [/\\\]/, 'string.delimiter', '@pop'],
+            [/\\[a-zA-Z@]+/, 'keyword.math'],
+            [/[{}\[\]]/, 'delimiter.math'],
+            [/[a-zA-Z]+/, 'variable.math'],
+            [/./, 'string']
+          ],
+          
+          mathInlineBracket: [
+            [/\\\)/, 'string.delimiter', '@pop'],
+            [/\\[a-zA-Z@]+/, 'keyword.math'],
+            [/[{}\[\]]/, 'delimiter.math'],
+            [/[a-zA-Z]+/, 'variable.math'],
+            [/./, 'string']
+          ],
+          
+          braces: [
+            [/\{/, 'delimiter.curly', '@braces'],
+            [/\}/, 'delimiter.curly', '@pop'],
+            [/\\[a-zA-Z@]+/, 'keyword'],
+            [/%.*$/, 'comment'],
+            [/./, 'text']
+          ],
+          
+          brackets: [
+            [/\[/, 'delimiter.square', '@brackets'],
+            [/\]/, 'delimiter.square', '@pop'],
+            [/\\[a-zA-Z@]+/, 'keyword'],
+            [/%.*$/, 'comment'],
+            [/./, 'text']
           ]
         }
       });
@@ -336,7 +431,15 @@ function MonacoEditorContent({ content, language, onChange, fileName }) {
   };
 
   const handleEditorChange = (value) => {
-    onChange?.(value || '');
+    if (!readOnly) {
+      debouncedSave(value || '');
+    }
+  };
+
+  const handleManualSave = () => {
+    if (onSave && editorRef.current) {
+      onSave(editorRef.current.getValue());
+    }
   };
 
   return (

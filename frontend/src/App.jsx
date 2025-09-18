@@ -13,6 +13,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar"
 import CodeEditor from './components/code-editor'
+import EnhancedCodeEditor from './components/enhanced-code-editor'
 import { useState } from 'react'
 
 export default function App() {
@@ -33,7 +34,7 @@ export default function App() {
             <ResizablePanelGroup direction="horizontal" className="h-full">
               <ResizablePanel defaultSize={50} minSize={20}>
                 <div className="h-full w-full">
-                  <CodeEditor selectedFile={selectedFile} />
+                  <EnhancedCodeEditor selectedFile={selectedFile} onFileSelect={setSelectedFile} />
                 </div>
               </ResizablePanel>
               <ResizableHandle withHandle />
