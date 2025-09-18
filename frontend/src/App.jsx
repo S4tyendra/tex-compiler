@@ -45,113 +45,84 @@ export default function App() {
   const [selectedFile, setSelectedFile] = useState('/main.tex')
   const [lastCompilation, setLastCompilation] = useState(null)
   const [compilations, setCompilations] = useState([])
-  const [autoCompile, setAutoCompile] = useState(false)
-  const lastMainFileRef = useRef(null)
-  const lastCompilerRef = useRef(null)
+  const [autoCompile, setAutoCompile] = useState(true) // Default to on
   
-  // Request persistent storage permission
+  const compilationSettingsRef = useRef({ mainFile: 'main', compiler: 'pdflatex' });
+
+  // Load history and request persistent storage on mount
   useEffect(() => {
-    const requestPersistentStorage = async () => {
-      if ('storage' in navigator && 'persist' in navigator.storage) {
-        try {
-          const granted = await navigator.storage.persist();
-          console.log('Persistent storage:', granted ? 'granted' : 'denied');
-        } catch (error) {
-          console.error('Error requesting persistent storage:', error);
+    const initializeApp = async () => {
+      if (navigator.storage && navigator.storage.persist) {
+        const isPersisted = await navigator.storage.persisted();
+        if (!isPersisted) {
+          await navigator.storage.persist();
         }
       }
+      await fileStorage.init();
+      await loadHistory();
     };
-    
-    requestPersistentStorage();
+    initializeApp();
   }, []);
   
-  // Load compilation history on mount
-  useEffect(() => {
-    const loadHistory = async () => {
-      try {
-        const history = await compilerService.getCompilations();
-        setCompilations(history);
-        if (history.length > 0) {
-          setLastCompilation(history[0]);
-        }
-      } catch (error) {
-        console.error('Error loading compilation history:', error);
+  const loadHistory = async () => {
+    try {
+      const history = await compilerService.getCompilations();
+      setCompilations(history);
+      if (history.length > 0) {
+        setLastCompilation(history[0]);
       }
-    };
-    
-    loadHistory();
-  }, []);
-  
+    } catch (error) {
+      console.error('Error loading compilation history:', error);
+    }
+  };
+
   const handleCompile = async (mainFile, compiler) => {
     try {
       const allFiles = await fileStorage.getAllFiles();
-      const result = await compilerService.compileProject(allFiles, mainFile, compiler);
-      console.log('Compilation result:', result);
+      const apiResponse = await compilerService.compileProject(allFiles, mainFile, compiler);
       
-      // Save compilation to storage and update state
-      if (result) {
-        const compilationData = {
-          job_id: result.job_id,
-          success: result.success,
-          message: result.message,
-          logs_url: result.logs_url,
-          pdf_url: result.pdf_url,
+      if (apiResponse.job_id) {
+        // This now fetches artifacts and saves them to IndexedDB
+        const fullRecord = await compilerService.addCompilation({
+          ...apiResponse,
           mainFile,
           compiler,
-          timestamp: new Date().toISOString()
-        };
+        });
         
-        await compilerService.addCompilation(compilationData);
-        setLastCompilation(compilationData);
-        
-        // Reload compilation history to update the list
-        const updatedHistory = await compilerService.getCompilations();
-        setCompilations(updatedHistory);
+        // Update state with the full record from DB
+        setLastCompilation(fullRecord);
+        await loadHistory(); // Refresh the history list
+        return fullRecord;
       }
-      
-      return result;
     } catch (error) {
       console.error('Compilation failed:', error);
       throw error;
     }
   };
   
-  const handleCompilationUpdate = (compilation) => {
-    // Additional handling when compilation updates
-    console.log('Compilation updated:', compilation);
-  };
-  
-  // Auto-compile with debouncing
-  const debouncedAutoCompile = useDebounce(async (mainFile, compiler) => {
-    if (autoCompile && mainFile && compiler) {
-      try {
-        await handleCompile(mainFile, compiler);
-      } catch (error) {
-        console.error('Auto-compile failed:', error);
-      }
-    }
-  }, 2000); // 2 second delay
-  
-  // Trigger auto-compile when files change
-  const handleFileChange = useCallback((mainFile, compiler) => {
-    lastMainFileRef.current = mainFile;
-    lastCompilerRef.current = compiler;
-    
+  const handleSettingsChange = useCallback((mainFile, compiler) => {
+    compilationSettingsRef.current = { mainFile, compiler };
+  }, []);
+
+  const debouncedAutoCompile = useDebounce(() => {
     if (autoCompile) {
-      debouncedAutoCompile(mainFile, compiler);
+      const { mainFile, compiler } = compilationSettingsRef.current;
+      handleCompile(mainFile, compiler);
     }
-  }, [autoCompile, debouncedAutoCompile]);  return (
+  }, 1500); // 1.5s delay after save
+
+  const handleSaveComplete = useCallback(() => {
+    debouncedAutoCompile();
+  }, [debouncedAutoCompile]);  return (
     <ThemeProvider attribute="class">
       <SidebarProvider>
         <FilesNavigation onFileSelect={setSelectedFile} />
         <SidebarInset className="h-screen">
           <Header 
             onCompile={handleCompile} 
-            selectedFile={selectedFile}
-            onFileSelect={setSelectedFile}
             autoCompile={autoCompile}
             onAutoCompileChange={setAutoCompile}
-            onFileChange={handleFileChange}
+            onFileChange={handleSettingsChange}
           />
           <div className="h-full flex flex-col">
             <ResizablePanelGroup direction="horizontal" className="h-full flex-1">
@@ -160,7 +131,7 @@ export default function App() {
                   <EnhancedCodeEditor 
                     selectedFile={selectedFile} 
                     onFileSelect={setSelectedFile}
-                    onFileChange={handleFileChange}
+                    onSaveComplete={handleSaveComplete}
                   />
                 </div>
               </ResizablePanel>
@@ -171,7 +142,6 @@ export default function App() {
                     lastCompilation={lastCompilation}
                     compilations={compilations}
                     onCompilationSelect={setLastCompilation}
-                    onCompilationUpdate={handleCompilationUpdate}
                   />
                 </div>
               </ResizablePanel>

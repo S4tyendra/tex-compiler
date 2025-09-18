@@ -4,6 +4,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { fileStorage } from "@/lib/file-storage";
 import { 
   Select,
@@ -20,11 +21,12 @@ import {
   WifiOff, 
   Activity,
   Clock,
-  Server,
-  Zap,
   AlertTriangle,
   ToggleLeft,
-  ToggleRight
+  ToggleRight,
+  Info,
+  Calendar,
+  Settings
 } from "lucide-react";
 
 export default function Header({ onCompile, selectedFile, onFileSelect, autoCompile, onAutoCompileChange, onFileChange }) {
@@ -109,50 +111,42 @@ export default function Header({ onCompile, selectedFile, onFileSelect, autoComp
   }, []);
 
   const updateSettings = (key, value) => {
-    const settings = {
-      defaultFile: selectedMainFile,
-      compiler: selectedCompiler,
-      [key]: value
+    const newSettings = {
+      defaultFile: key === 'defaultFile' ? value : selectedMainFile,
+      compiler: key === 'compiler' ? value : selectedCompiler,
     };
     
-    if (key === 'defaultFile') {
-      setSelectedMainFile(value);
-      localStorage.setItem('manualFileSelection', 'true'); // Mark as manually selected
-    } else if (key === 'compiler') {
-      setSelectedCompiler(value);
-    }
+    if (key === 'defaultFile') setSelectedMainFile(value);
+    if (key === 'compiler') setSelectedCompiler(value);
     
-    localStorage.setItem('compilerSettings', JSON.stringify(settings));
-    
-    // Notify parent of file changes for auto-compile
-    if (onFileChange) {
-      onFileChange(settings.defaultFile, settings.compiler);
-    }
+    localStorage.setItem('compilerSettings', JSON.stringify(newSettings));
   };
 
   const handleCompile = async () => {
-    if (isCompiling) return;
+    if (isCompiling || !selectedMainFile) return;
     
     setIsCompiling(true);
     try {
-      await onCompile(selectedMainFile, selectedCompiler);
+      await onCompile?.(selectedMainFile, selectedCompiler);
     } catch (error) {
-      console.error('Compilation failed:', error);
+      console.error('Compilation error in header:', error);
     } finally {
       setIsCompiling(false);
     }
   };
 
   const getStatusColor = () => {
-    if (!isOnline) return 'bg-red-500';
-    if (!health) return 'bg-yellow-500';
-    return health.status === 'healthy' ? 'bg-green-500' : 'bg-red-500';
+    if (!isOnline) return "bg-red-500";
+    if (!health) return "bg-gray-500";
+    if (health.status !== "healthy") return "bg-red-500";
+    return (health.running_jobs >= health.max_concurrent) ? "bg-yellow-500" : "bg-green-500";
   };
 
   const getStatusText = () => {
-    if (!isOnline) return 'Offline';
-    if (!health) return 'Loading';
-    return health.status === 'healthy' ? 'Online' : 'Error';
+    if (!isOnline) return "Offline";
+    if (!health) return "Checking...";
+    if (health.status !== "healthy") return "Error";
+    return (health.running_jobs >= health.max_concurrent) ? "Busy" : "Online";
   };
 
   return (
@@ -161,10 +155,9 @@ export default function Header({ onCompile, selectedFile, onFileSelect, autoComp
         <SidebarTrigger />
         <Separator orientation="vertical" className="h-6" />
         
-        {/* Compile Button */}
         <Button 
           onClick={handleCompile} 
-          disabled={isCompiling}
+          disabled={isCompiling || !selectedMainFile}
           size="sm" 
           className="gap-2"
         >
@@ -172,26 +165,22 @@ export default function Header({ onCompile, selectedFile, onFileSelect, autoComp
           {isCompiling ? 'Compiling...' : 'Compile'}
         </Button>
         
-        {/* Auto-compile toggle */}
         <Button
           variant={autoCompile ? "default" : "outline"}
           size="sm"
           onClick={() => onAutoCompileChange?.(!autoCompile)}
           className="gap-2"
+          title="Toggle auto-compilation on file change"
         >
-          {autoCompile ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
+          {autoCompile ? <ToggleRight className="h-4 w-4 text-green-400" /> : <ToggleLeft className="h-4 w-4" />}
           Auto
         </Button>
       </div>
 
       {/* Compiler and File Selection */}
       <div className="flex items-center gap-3">
-        {/* File Selection - only show if 2 or more files */}
         {files.length > 1 && (
-          <Select 
-            value={selectedMainFile} 
-            onValueChange={(value) => updateSettings('defaultFile', value)}
-          >
+          <Select value={selectedMainFile} onValueChange={(value) => updateSettings('defaultFile', value)}>
             <SelectTrigger className="w-32">
               <SelectValue placeholder="Select file" />
             </SelectTrigger>
@@ -205,14 +194,8 @@ export default function Header({ onCompile, selectedFile, onFileSelect, autoComp
           </Select>
         )}
         
-        {/* Compiler Selection */}
-        <Select 
-          value={selectedCompiler} 
-          onValueChange={(value) => updateSettings('compiler', value)}
-        >
-          <SelectTrigger className="w-28">
-            <SelectValue />
-          </SelectTrigger>
+        <Select value={selectedCompiler} onValueChange={(value) => updateSettings('compiler', value)}>
+          <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="pdflatex">PDFLaTeX</SelectItem>
             <SelectItem value="lualatex">LuaLaTeX</SelectItem>
@@ -221,52 +204,27 @@ export default function Header({ onCompile, selectedFile, onFileSelect, autoComp
         </Select>
       </div>
 
-      {/* Status and Health */}
       <div className="flex items-center gap-3">
-        {/* Health Info */}
         {health && isOnline && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <div className="flex items-center gap-1">
-              <Activity className="h-3 w-3" />
-              <span>{health.running_jobs}/{health.max_concurrent}</span>
-            </div>
-            
+            <Activity className="h-3 w-3" />
+            <span>{health.running_jobs || 0}/{health.max_concurrent || 0}</span>
             <Separator orientation="vertical" className="h-4" />
-            
-            <div className="flex items-center gap-1">
-              <Clock className="h-3 w-3" />
-              <span>{health.compilation_timeout}</span>
-            </div>
+            <Clock className="h-3 w-3" />
+            <span>{health.compilation_timeout || '60s'}</span>
           </div>
         )}
 
-        {/* Connection Status */}
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2">
-            {isOnline ? (
-              <Wifi className="h-4 w-4 text-green-500" />
-            ) : (
-              <WifiOff className="h-4 w-4 text-red-500" />
-            )}
-            
-            <div className="flex items-center gap-2">
-              <div 
-                className={`w-2 h-2 rounded-full animate-pulse ${getStatusColor()}`}
-                title={`Service Status: ${getStatusText()}`}
-              />
-              <Badge 
-                variant={isOnline && health?.status === "healthy" ? "default" : "destructive"}
-                className="animate-in fade-in-50 duration-300"
-              >
-                {getStatusText()}
-              </Badge>
-            </div>
-          </div>
+          {isOnline ? <Wifi className="h-4 w-4 text-green-500" /> : <WifiOff className="h-4 w-4 text-red-500" />}
+          <div className={`w-2 h-2 rounded-full animate-pulse ${getStatusColor()}`} title={`Service Status: ${getStatusText()}`} />
+          <Badge variant={getStatusText() === "Online" ? "default" : "destructive"}>
+            {getStatusText()}
+          </Badge>
         </div>
 
-        {/* Server Overload Warning */}
-        {health && health.running_jobs >= health.max_concurrent && (
-          <div className="flex items-center gap-1 text-amber-600">
+        {health?.running_jobs >= health?.max_concurrent && (
+          <div className="flex items-center gap-1 text-yellow-500">
             <AlertTriangle className="h-4 w-4" />
             <span className="text-xs font-medium">Server Busy</span>
           </div>

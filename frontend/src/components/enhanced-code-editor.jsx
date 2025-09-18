@@ -31,7 +31,7 @@ const useDebounce = (callback, delay) => {
   return debouncedCallback;
 };
 
-export default function EnhancedCodeEditor({ selectedFile, onFileSelect, onFileChange }) {
+export default function EnhancedCodeEditor({ selectedFile, onFileSelect, onSaveComplete }) {
   const [openTabs, setOpenTabs] = useState([]);
   const [activeTab, setActiveTab] = useState(null);
   const [tabContents, setTabContents] = useState({});
@@ -49,10 +49,12 @@ export default function EnhancedCodeEditor({ selectedFile, onFileSelect, onFileC
         newSet.delete(filePath);
         return newSet;
       });
+      // *** ADD THIS LINE ***
+      onSaveComplete?.(); // Notify parent that a save has completed
     } catch (error) {
       console.error("Error auto-saving file:", error);
     }
-  }, 500);
+  }, 1000); // Increased delay slightly for better UX
 
   // Initialize storage - run only once
   useEffect(() => {
@@ -218,6 +220,8 @@ export default function EnhancedCodeEditor({ selectedFile, onFileSelect, onFileC
         newSet.delete(filePath);
         return newSet;
       });
+      // *** ADD THIS LINE ***
+      onSaveComplete?.(); // Also notify on manual save
     } catch (error) {
       console.error("Error saving file:", error);
     }

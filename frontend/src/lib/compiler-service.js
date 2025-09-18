@@ -118,9 +118,39 @@ class CompilerService {
     return response.text();
   }
   
-  async addCompilation(compilation) {
-    await fileStorage.saveCompilation(compilation);
+  // MODIFIED: This function now fetches artifacts and saves them locally.
+  async addCompilation(compilationData) {
+    let pdfBlob = null;
+    let logsText = "";
+
+    try {
+      // Fetch PDF and logs immediately from the server's temporary URLs
+      if (compilationData.success && compilationData.pdf_url) {
+        const pdfResponse = await fetch(`${API_BASE}${compilationData.pdf_url}`);
+        if (pdfResponse.ok) {
+          pdfBlob = await pdfResponse.blob();
+        }
+      }
+      if (compilationData.logs_url) {
+        const logsResponse = await fetch(`${API_BASE}${compilationData.logs_url}`);
+        if (logsResponse.ok) {
+          logsText = await logsResponse.text();
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching compilation artifacts:", error);
+    }
+
+    const fullCompilationRecord = {
+      ...compilationData,
+      id: compilationData.job_id,
+      pdfBlob, // Store the actual PDF Blob
+      logsText, // Store the actual log text
+    };
+    
+    await fileStorage.saveCompilation(fullCompilationRecord);
     await fileStorage.deleteOldCompilations(); // Keep only 20 most recent
+    return fullCompilationRecord;
   }
   
   async getCompilations() {

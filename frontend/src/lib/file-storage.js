@@ -430,30 +430,30 @@ Write your content here.
   }
 
   // Compilation history methods
+  // MODIFIED: This now stores the full record including blobs.
   async saveCompilation(compilationData) {
     if (!this.db) {
       await this.init();
     }
     
     try {
-      // Only store serializable data to avoid IndexedDB issues
+      // The object now contains pdfBlob and logsText, which IndexedDB can handle.
       const compilation = {
         id: String(compilationData.job_id),
         job_id: String(compilationData.job_id),
         success: Boolean(compilationData.success),
         message: String(compilationData.message || ''),
-        logs_url: String(compilationData.logs_url || ''),
-        pdf_url: String(compilationData.pdf_url || ''),
         timestamp: new Date().toISOString(),
         compiler: String(compilationData.compiler || 'pdflatex'),
-        mainFile: String(compilationData.mainFile || 'main')
+        mainFile: String(compilationData.mainFile || 'main'),
+        pdfBlob: compilationData.pdfBlob, // This is a Blob object
+        logsText: compilationData.logsText, // This is a string
       };
       
       const tx = this.db.transaction(COMPILATIONS_STORE, 'readwrite');
       await tx.objectStore(COMPILATIONS_STORE).put(compilation);
       await tx.done;
       
-      // Clean up old compilations
       await this.deleteOldCompilations();
       
       return compilation;
