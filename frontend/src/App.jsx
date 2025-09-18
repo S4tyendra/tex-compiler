@@ -23,6 +23,12 @@ export default function App() {
       <SidebarProvider>
         <FilesNavigation onFileSelect={setSelectedFile} />
         <SidebarInset className="h-screen">
+          <div>
+            <div className="p-4 border-b">
+              <h1 className="text-2xl font-bold">TexCompiler</h1>
+              <p className="text-sm text-muted-foreground">Online LaTeX Editor and Compiler</p>
+            </div>
+          </div>
           <div className="h-full flex flex-col">
             <ResizablePanelGroup direction="horizontal" className="h-full">
               <ResizablePanel defaultSize={50} minSize={20}>

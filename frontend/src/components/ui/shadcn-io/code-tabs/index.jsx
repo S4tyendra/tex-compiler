@@ -350,7 +350,7 @@ function MonacoEditorContent({ content, language, onChange, fileName }) {
         onChange={handleEditorChange}
         onMount={handleEditorDidMount}
         options={{
-          minimap: { enabled: false },
+          minimap: { enabled: true },
           scrollBeyondLastLine: false,
           fontSize: 14,
           fontFamily: 'JetBrains Mono, Fira Code, Monaco, Menlo, "Ubuntu Mono", monospace',
