@@ -66,6 +66,90 @@ export default function App() {
     };
     initializeApp();
   }, []);
+
+  // Dynamic title updates based on application state
+  useEffect(() => {
+    const updateTitle = () => {
+      let title = 'TeX Compiler - Online LaTeX Editor';
+      
+      if (compilationProgress.isCompiling) {
+        title = `${compilationProgress.stage} - TeX Compiler`;
+      } else if (selectedFile && selectedFile !== '/main.tex') {
+        const fileName = selectedFile.split('/').pop();
+        title = `${fileName} - TeX Compiler`;
+      } else if (lastCompilation) {
+        const status = lastCompilation.success ? '✓' : '✗';
+        title = `${status} ${lastCompilation.mainFile}.tex - TeX Compiler`;
+      }
+      
+      document.title = title;
+    };
+    
+    updateTitle();
+  }, [selectedFile, compilationProgress, lastCompilation]);
+
+  // Update meta description based on current file
+  useEffect(() => {
+    const updateMetaDescription = () => {
+      const metaDescription = document.querySelector('meta[name="description"]');
+      if (metaDescription) {
+        let description = 'Compile LaTeX documents online with our fast, reliable TeX compiler. Support for PDFLaTeX, XeLaTeX, and LuaLaTeX.';
+        
+        if (selectedFile && selectedFile !== '/main.tex') {
+          const fileName = selectedFile.split('/').pop();
+          description = `Editing ${fileName} - ${description}`;
+        } else if (compilations.length > 0) {
+          description = `${compilations.length} compilations completed - ${description}`;
+        }
+        
+        metaDescription.setAttribute('content', description);
+      }
+    };
+    
+    updateMetaDescription();
+  }, [selectedFile, compilations]);
+
+  // Dynamic title updates based on application state
+  useEffect(() => {
+    const updateTitle = () => {
+      let title = 'TeX Compiler - Online LaTeX Editor | DEVH.IN';
+      
+      if (compilationProgress.isCompiling) {
+        title = `${compilationProgress.stage} - TeX Compiler`;
+      } else if (selectedFile && selectedFile !== '/main.tex') {
+        const fileName = selectedFile.split('/').pop();
+        title = `${fileName} - TeX Compiler`;
+      } else if (lastCompilation) {
+        const status = lastCompilation.success ? '✓' : '✗';
+        title = `${status} ${lastCompilation.mainFile}.tex - TeX Compiler`;
+      }
+      
+      document.title = title;
+    };
+    
+    updateTitle();
+  }, [selectedFile, compilationProgress, lastCompilation]);
+
+  // Update meta description based on current file
+  useEffect(() => {
+    const updateMetaDescription = () => {
+      const metaDescription = document.querySelector('meta[name="description"]');
+      if (metaDescription) {
+        let description = 'Compile LaTeX documents online with our fast, reliable TeX compiler. Support for PDFLaTeX, XeLaTeX, and LuaLaTeX.';
+        
+        if (selectedFile && selectedFile !== '/main.tex') {
+          const fileName = selectedFile.split('/').pop();
+          description = `Editing ${fileName} - ${description}`;
+        } else if (compilations.length > 0) {
+          description = `${compilations.length} compilations completed - ${description}`;
+        }
+        
+        metaDescription.setAttribute('content', description);
+      }
+    };
+    
+    updateMetaDescription();
+  }, [selectedFile, compilations]);
   
   const loadHistory = async () => {
     try {
