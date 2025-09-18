@@ -33,16 +33,7 @@ export default function PDFPreview({ lastCompilation: propLastCompilation }) {
   const [error, setError] = useState({ pdf: null, logs: null });
   const iframeRef = useRef();
 
-  // Update last compilation when prop changes
-  useEffect(() => {
-    if (propLastCompilation) {
-      setLastCompilation(propLastCompilation);
-      // Clear previous PDF/logs to force reload
-      setPdfUrl(null);
-      setLogs("");
-      setError({ pdf: null, logs: null });
-    }
-  }, [propLastCompilation]);
+    // Update last compilation when prop changes\n  useEffect(() => {\n    if (propLastCompilation) {\n      setLastCompilation(propLastCompilation);\n      \n      // If PDF and logs are already included, use them directly\n      if (propLastCompilation.pdfUrl) {\n        setPdfUrl(propLastCompilation.pdfUrl);\n      } else {\n        setPdfUrl(null);\n      }\n      \n      if (propLastCompilation.logs) {\n        setLogs(propLastCompilation.logs);\n      } else {\n        setLogs(\"\");\n      }\n      \n      setError({ pdf: null, logs: null });\n    }\n  }, [propLastCompilation]);
 
   useEffect(() => {
     loadCompilationData();
@@ -50,17 +41,27 @@ export default function PDFPreview({ lastCompilation: propLastCompilation }) {
 
   // Load PDF when output tab is active and we have a successful compilation
   useEffect(() => {
-    if (activeTab === "output" && lastCompilation?.success && lastCompilation?.job_id && !pdfUrl && !loading.pdf) {
-      loadPDF(lastCompilation.job_id);
+    if (activeTab === "output" && lastCompilation?.success && lastCompilation?.job_id) {
+      // If PDF URL is already available, use it; otherwise load from API
+      if (lastCompilation.pdfUrl && !pdfUrl) {
+        setPdfUrl(lastCompilation.pdfUrl);
+      } else if (!pdfUrl && !loading.pdf) {
+        loadPDF(lastCompilation.job_id);
+      }
     }
-  }, [activeTab, lastCompilation]);
+  }, [activeTab, lastCompilation, pdfUrl]);
 
   // Load logs when log tab is active
   useEffect(() => {
-    if (activeTab === "log" && lastCompilation?.job_id && !logs && !loading.logs) {
-      loadLogs(lastCompilation.job_id);
+    if (activeTab === "log" && lastCompilation?.job_id) {
+      // If logs are already available, use them; otherwise load from API
+      if (lastCompilation.logs && !logs) {
+        setLogs(lastCompilation.logs);
+      } else if (!logs && !loading.logs) {
+        loadLogs(lastCompilation.job_id);
+      }
     }
-  }, [activeTab, lastCompilation]);
+  }, [activeTab, lastCompilation, logs]);
 
   const loadCompilationData = async () => {
     try {

@@ -7,20 +7,18 @@ class CompilerService {
     // We'll use IndexedDB through fileStorage instead of localStorage
   }
 
-  async compileProject(files, mainFile = 'main', compiler = 'pdflatex') {
+  async compileProject(allFiles, mainFile, compiler = 'pdflatex') {
     const formData = new FormData();
     
-    // Create ZIP from files
-    const JSZip = (await import('jszip')).default;
+    // Create a ZIP file from all files
     const zip = new JSZip();
     
-    // Add all files to ZIP
-    files.forEach(file => {
+    allFiles.forEach(file => {
       if (file.type === 'file') {
         const path = file.path.startsWith('/') ? file.path.slice(1) : file.path;
         
         if (file.isBase64) {
-          // Convert base64 back to binary
+          // Convert base64 back to binary for ZIP
           const binaryString = atob(file.content);
           const bytes = new Uint8Array(binaryString.length);
           for (let i = 0; i < binaryString.length; i++) {
@@ -34,34 +32,68 @@ class CompilerService {
     });
     
     const zipBlob = await zip.generateAsync({ type: 'blob' });
+    
     formData.append('file', zipBlob, 'project.zip');
-    formData.append('main', mainFile);
+    formData.append('main', mainFile.replace('.tex', ''));
     formData.append('compiler', compiler);
     
     const response = await fetch(`${API_BASE}/compile`, {
       method: 'POST',
-      body: formData
+      body: formData,
     });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Compilation failed');
+    }
     
     const result = await response.json();
     
-    if (result.success || result.job_id) {
-      // Save to compilation history
-      const compilation = {
-        id: result.job_id,
-        timestamp: new Date().toISOString(),
-        mainFile,
-        compiler,
-        success: result.success,
-        logsUrl: result.logs_url,
-        pdfUrl: result.pdf_url,
-        message: result.message
-      };
-      
-      await this.addCompilation(compilation);
+    // Add compilation data with metadata for storage
+    const compilationData = {
+      job_id: result.job_id,
+      success: result.success,
+      message: result.message,
+      logs_url: result.logs_url,
+      pdf_url: result.pdf_url,
+      mainFile,
+      compiler
+    };
+    
+    // Save to storage
+    await this.addCompilation(compilationData);
+    
+    // If successful, also fetch the actual PDF and logs
+    if (result.success) {
+      try {
+        // Fetch PDF
+        const pdfResponse = await fetch(`${API_BASE}${result.pdf_url}`);
+        if (pdfResponse.ok) {
+          compilationData.pdfBlob = await pdfResponse.blob();
+          compilationData.pdfUrl = URL.createObjectURL(compilationData.pdfBlob);
+        }
+        
+        // Fetch logs
+        const logsResponse = await fetch(`${API_BASE}${result.logs_url}`);
+        if (logsResponse.ok) {
+          compilationData.logs = await logsResponse.text();
+        }
+      } catch (error) {
+        console.warn('Failed to fetch PDF or logs:', error);
+      }
+    } else {
+      // For failed compilations, still try to get logs
+      try {
+        const logsResponse = await fetch(`${API_BASE}${result.logs_url}`);
+        if (logsResponse.ok) {
+          compilationData.logs = await logsResponse.text();
+        }
+      } catch (error) {
+        console.warn('Failed to fetch error logs:', error);
+      }
     }
     
-    return result;
+    return compilationData;
   }
   
   async compileSingleFile(content, filename, compiler = 'pdflatex') {

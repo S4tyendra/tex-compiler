@@ -436,16 +436,17 @@ Write your content here.
     }
     
     try {
+      // Only store serializable data to avoid IndexedDB issues
       const compilation = {
-        id: compilationData.job_id,
-        job_id: compilationData.job_id,
-        success: compilationData.success,
-        message: compilationData.message,
-        logs_url: compilationData.logs_url,
-        pdf_url: compilationData.pdf_url,
+        id: String(compilationData.job_id),
+        job_id: String(compilationData.job_id),
+        success: Boolean(compilationData.success),
+        message: String(compilationData.message || ''),
+        logs_url: String(compilationData.logs_url || ''),
+        pdf_url: String(compilationData.pdf_url || ''),
         timestamp: new Date().toISOString(),
-        compiler: compilationData.compiler || 'pdflatex',
-        mainFile: compilationData.mainFile || 'main'
+        compiler: String(compilationData.compiler || 'pdflatex'),
+        mainFile: String(compilationData.mainFile || 'main')
       };
       
       const tx = this.db.transaction(COMPILATIONS_STORE, 'readwrite');

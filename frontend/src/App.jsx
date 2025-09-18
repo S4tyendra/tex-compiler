@@ -27,16 +27,8 @@ export default function App() {
       const result = await compilerService.compileProject(allFiles, mainFile, compiler);
       console.log('Compilation result:', result);
       
-      // Save compilation to storage and update state
-      if (result) {
-        const compilationData = {
-          ...result,
-          mainFile,
-          compiler
-        };
-        await compilerService.addCompilation(compilationData);
-        setLastCompilation(compilationData);
-      }
+      // Update state with the result that includes fetched PDF and logs
+      setLastCompilation(result);
       
       return result;
     } catch (error) {
