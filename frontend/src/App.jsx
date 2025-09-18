@@ -116,6 +116,11 @@ export default function App() {
     }
   };
   
+  const handleCompilationUpdate = (compilation) => {
+    // Additional handling when compilation updates
+    console.log('Compilation updated:', compilation);
+  };
+  
   // Auto-compile with debouncing
   const debouncedAutoCompile = useDebounce(async (mainFile, compiler) => {
     if (autoCompile && mainFile && compiler) {
@@ -166,6 +171,7 @@ export default function App() {
                     lastCompilation={lastCompilation}
                     compilations={compilations}
                     onCompilationSelect={setLastCompilation}
+                    onCompilationUpdate={handleCompilationUpdate}
                   />
                 </div>
               </ResizablePanel>

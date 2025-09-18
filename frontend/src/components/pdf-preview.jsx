@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTab, TabsPanels, TabsPanel } from "@/components/animate-ui/components/base/tabs";
 import { compilerService } from "@/lib/compiler-service";
@@ -19,10 +20,13 @@ import {
   Maximize2,
   Eye,
   Terminal,
-  FileDown
+  FileDown,
+  Info,
+  Calendar,
+  Settings
 } from "lucide-react";
 
-export default function PDFPreview({ lastCompilation: propLastCompilation }) {
+export default function PDFPreview({ lastCompilation: propLastCompilation, onCompilationUpdate, compilations: propCompilations, onCompilationSelect }) {
   const [activeTab, setActiveTab] = useState("output");
   const [pdfUrl, setPdfUrl] = useState(null);
   const [logs, setLogs] = useState("");
@@ -31,12 +35,27 @@ export default function PDFPreview({ lastCompilation: propLastCompilation }) {
   const [showHistory, setShowHistory] = useState(false);
   const [loading, setLoading] = useState({ pdf: false, logs: false });
   const [error, setError] = useState({ pdf: null, logs: null });
+  const [hasStoragePermission, setHasStoragePermission] = useState(false);
   const iframeRef = useRef();
 
     // Update last compilation when prop changes\n  useEffect(() => {\n    if (propLastCompilation) {\n      setLastCompilation(propLastCompilation);\n      \n      // If PDF and logs are already included, use them directly\n      if (propLastCompilation.pdfUrl) {\n        setPdfUrl(propLastCompilation.pdfUrl);\n      } else {\n        setPdfUrl(null);\n      }\n      \n      if (propLastCompilation.logs) {\n        setLogs(propLastCompilation.logs);\n      } else {\n        setLogs(\"\");\n      }\n      \n      setError({ pdf: null, logs: null });\n    }\n  }, [propLastCompilation]);
 
   useEffect(() => {
     loadCompilationData();
+    
+    // Request persistent storage permission
+    if ('storage' in navigator && 'persist' in navigator.storage) {
+      navigator.storage.persist().then(granted => {
+        setHasStoragePermission(granted);
+        if (granted) {
+          console.log('Persistent storage granted');
+        } else {
+          console.warn('Persistent storage denied');
+        }
+      }).catch(error => {
+        console.error('Error requesting persistent storage:', error);
+      });
+    }
   }, []);
 
   // Load PDF when output tab is active and we have a successful compilation
@@ -113,6 +132,45 @@ export default function PDFPreview({ lastCompilation: propLastCompilation }) {
     }
   };
 
+  const downloadPDF = async (jobId) => {
+    try {
+      const response = await fetch(`https://tex-compiler.devh.in/files/${jobId}.pdf`);
+      if (!response.ok) throw new Error('PDF not found');
+      
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${jobId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading PDF:', error);
+    }
+  };
+  
+  const downloadLogs = async (jobId) => {
+    try {
+      const response = await fetch(`https://tex-compiler.devh.in/logs/${jobId}.log`);
+      if (!response.ok) throw new Error('Logs not found');
+      
+      const text = await response.text();
+      const blob = new Blob([text], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${jobId}.log`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading logs:', error);
+    }
+  };
+
   const loadCompilation = async (compilation) => {
     setLastCompilation(compilation);
     setShowHistory(false);
@@ -128,31 +186,6 @@ export default function PDFPreview({ lastCompilation: propLastCompilation }) {
     } else {
       setActiveTab("log");
       await loadLogs(compilation.id);
-    }
-  };
-
-  const downloadPDF = () => {
-    if (pdfUrl && lastCompilation) {
-      const link = document.createElement('a');
-      link.href = pdfUrl;
-      link.download = `${lastCompilation.mainFile || 'document'}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
-  };
-
-  const downloadLogs = () => {
-    if (logs && lastCompilation) {
-      const blob = new Blob([logs], { type: 'text/plain' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${lastCompilation.mainFile || 'document'}-compilation.log`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
     }
   };
 
