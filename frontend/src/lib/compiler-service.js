@@ -1,11 +1,52 @@
 import { fileStorage } from './file-storage';
 import JSZip from 'jszip';
 
-const API_BASE = 'https://tex-compiler.devh.in';
+const DEFAULT_API_BASE = 'https://tex-compiler.devh.in';
 
+/**
+ * LaTeX Compilation Service with configurable API endpoint
+ * 
+ * The API endpoint can be customized through the settings UI:
+ * - Default: https://tex-compiler.devh.in 
+ * - Stored in localStorage under 'apiSettings'
+ * - Supports validation and reset functionality
+ */
 class CompilerService {
   constructor() {
     // We'll use IndexedDB through fileStorage instead of localStorage
+  }
+
+  getApiBase() {
+    try {
+      const settings = localStorage.getItem('apiSettings');
+      if (settings) {
+        const parsed = JSON.parse(settings);
+        return parsed.apiEndpoint || DEFAULT_API_BASE;
+      }
+    } catch (error) {
+      console.warn('Failed to load API settings:', error);
+    }
+    return DEFAULT_API_BASE;
+  }
+
+  setApiBase(endpoint) {
+    try {
+      const settings = JSON.parse(localStorage.getItem('apiSettings') || '{}');
+      settings.apiEndpoint = endpoint;
+      localStorage.setItem('apiSettings', JSON.stringify(settings));
+    } catch (error) {
+      console.error('Failed to save API settings:', error);
+    }
+  }
+
+  resetApiBase() {
+    try {
+      const settings = JSON.parse(localStorage.getItem('apiSettings') || '{}');
+      delete settings.apiEndpoint;
+      localStorage.setItem('apiSettings', JSON.stringify(settings));
+    } catch (error) {
+      console.error('Failed to reset API settings:', error);
+    }
   }
 
   async compileProject(allFiles, mainFile, compiler = 'pdflatex') {
@@ -42,7 +83,7 @@ class CompilerService {
       formData.append('compiler', compiler);
       
       // Send request
-      const response = await fetch(`${API_BASE}/compile`, {
+      const response = await fetch(`${this.getApiBase()}/compile`, {
         method: 'POST',
         body: formData,
       });
@@ -80,7 +121,7 @@ class CompilerService {
     formData.append('file', blob, filename);
     formData.append('compiler', compiler);
     
-    const response = await fetch(`${API_BASE}/compile`, {
+    const response = await fetch(`${this.getApiBase()}/compile`, {
       method: 'POST',
       body: formData
     });
@@ -107,7 +148,7 @@ class CompilerService {
   
   async getHealth() {
     try {
-      const response = await fetch(`${API_BASE}/health`);
+      const response = await fetch(`${this.getApiBase()}/health`);
       return await response.json();
     } catch (error) {
       return {
@@ -120,7 +161,7 @@ class CompilerService {
   }
   
   async downloadPDF(jobId) {
-    const response = await fetch(`${API_BASE}/files/${jobId}.pdf`);
+    const response = await fetch(`${this.getApiBase()}/files/${jobId}.pdf`);
     if (!response.ok) {
       throw new Error('PDF not found');
     }
@@ -128,7 +169,7 @@ class CompilerService {
   }
   
   async getLogs(jobId) {
-    const response = await fetch(`${API_BASE}/logs/${jobId}.log`);
+    const response = await fetch(`${this.getApiBase()}/logs/${jobId}.log`);
     if (!response.ok) {
       throw new Error('Logs not found');
     }
@@ -144,7 +185,7 @@ class CompilerService {
       // Fetch PDF and logs immediately from the server's temporary URLs
       if (compilationData.success && compilationData.pdf_url) {
         try {
-          const pdfResponse = await fetch(`${API_BASE}${compilationData.pdf_url}`);
+          const pdfResponse = await fetch(`${this.getApiBase()}${compilationData.pdf_url}`);
           if (pdfResponse.ok) {
             pdfBlob = await pdfResponse.blob();
           }
@@ -154,7 +195,7 @@ class CompilerService {
       }
       if (compilationData.logs_url) {
         try {
-          const logsResponse = await fetch(`${API_BASE}${compilationData.logs_url}`);
+          const logsResponse = await fetch(`${this.getApiBase()}${compilationData.logs_url}`);
           if (logsResponse.ok) {
             logsText = await logsResponse.text();
           }

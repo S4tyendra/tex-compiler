@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { fileStorage } from "@/lib/file-storage";
+import { ApiSettings } from "@/components/api-settings";
 import { 
   Select,
   SelectContent,
@@ -38,6 +39,7 @@ export default function Header({ onCompile, autoCompile, onAutoCompileChange, on
   const [selectedMainFile, setSelectedMainFile] = useState('main');
   const [selectedCompiler, setSelectedCompiler] = useState('pdflatex');
   const [isCompiling, setIsCompiling] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Health check every 3 seconds
   useEffect(() => {
@@ -276,6 +278,61 @@ export default function Header({ onCompile, autoCompile, onAutoCompileChange, on
             <span className="text-xs font-medium">Server Busy</span>
           </div>
         )}
+
+        <Popover open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className="gap-2">
+              <Settings className="h-4 w-4" />
+              <span className="hidden sm:inline">Settings</span>
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-80" align="end">
+            <div className="space-y-4">
+              <ApiSettings onEndpointChange={() => {
+                // Trigger health check after endpoint change
+                setTimeout(() => {
+                  compilerService.getHealth().then(setHealth).catch(() => setHealth(null));
+                }, 100);
+              }} />
+              
+              <Separator />
+              
+              <div className="space-y-2">
+                <h4 className="font-medium">Compilation Settings</h4>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-sm font-medium">Main File</label>
+                    <Select value={selectedMainFile} onValueChange={(value) => updateSettings('defaultFile', value)}>
+                      <SelectTrigger className="h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {files.map((file) => (
+                          <SelectItem key={file.name} value={file.name}>
+                            {file.name}.tex
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Compiler</label>
+                    <Select value={selectedCompiler} onValueChange={(value) => updateSettings('compiler', value)}>
+                      <SelectTrigger className="h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pdflatex">PDFLaTeX</SelectItem>
+                        <SelectItem value="lualatex">LuaLaTeX</SelectItem>
+                        <SelectItem value="xelatex">XeLaTeX</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
     </header>
   );
