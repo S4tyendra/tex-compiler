@@ -31,7 +31,7 @@ export default function App() {
             </div>
           </div>
           <div className="h-full flex flex-col">
-            <ResizablePanelGroup direction="horizontal" className="h-full">
+            <ResizablePanelGroup direction="horizontal" className="h-full flex-1">
               <ResizablePanel defaultSize={50} minSize={20}>
                 <div className="h-full w-full">
                   <EnhancedCodeEditor selectedFile={selectedFile} onFileSelect={setSelectedFile} />
@@ -40,8 +40,7 @@ export default function App() {
               <ResizableHandle withHandle />
               <ResizablePanel defaultSize={50} minSize={20}>
                 <div className="h-full w-full bg-gray-50 dark:bg-gray-900 flex items-center justify-center text-muted-foreground">
-                  ... Preview Panel ...
-                  
+                  PDF Preview (Coming Soon)
                 </div>
               </ResizablePanel>
             </ResizablePanelGroup>

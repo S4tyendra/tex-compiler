@@ -306,17 +306,18 @@ export default function EnhancedCodeEditor({ selectedFile, onFileSelect }) {
         </div>
 
         {/* Tab Content */}
-        <div className="flex-1 min-h-0">
+        <div className="flex-1 overflow-hidden">
           <TabsPanels className="h-full">
             {openTabs.map((tab, index) => (
               <TabsPanel key={`panel-${tab.path}-${index}`} value={tab.path} className="h-full">
-                <div className="h-full">
+                <div className="h-full w-full">
                   <MonacoEditorContent
                     content={tabContents[tab.path] || ''}
                     language={tab.language}
                     onChange={(newContent) => handleContentChange(tab.path, newContent)}
                     fileName={tab.name}
                     onSave={() => handleManualSave(tab.path)}
+                    theme={resolvedTheme}
                   />
                 </div>
               </TabsPanel>

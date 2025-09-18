@@ -115,7 +115,7 @@ const latexPackages = [
   'fancyhdr', 'setspace', 'enumitem', 'listings', 'algorithm2e', 'subcaption'
 ];
 
-function MonacoEditorContent({ content, language, onChange, fileName, readOnly = false, onSave }) {
+function MonacoEditorContent({ content, language, onChange, fileName, readOnly = false, onSave, theme: themeOverride }) {
   const { theme, resolvedTheme } = useTheme();
   const editorRef = React.useRef(null);
   const [isLanguageRegistered, setIsLanguageRegistered] = React.useState(false);
@@ -132,8 +132,9 @@ function MonacoEditorContent({ content, language, onChange, fileName, readOnly =
     setMounted(true);
   }, []);
 
-  // Get the actual theme to use
-  const editorTheme = mounted ? (resolvedTheme === 'dark' ? 'vs-dark' : 'vs-light') : 'vs-light';
+  // Get the actual theme to use - prefer passed theme, fallback to resolved theme
+  const actualTheme = themeOverride || resolvedTheme;
+  const editorTheme = mounted ? (actualTheme === 'dark' ? 'vs-dark' : 'vs-light') : 'vs-light';
 
   const handleEditorDidMount = (editor, monaco) => {
     editorRef.current = editor;
@@ -447,6 +448,7 @@ function MonacoEditorContent({ content, language, onChange, fileName, readOnly =
       <Editor
         height="100%"
         width="100%"
+        style={{ borderRadius: '8px', height: '100%', width: '100%' }}
         language={language === 'latex' ? 'latex' : language === 'bibtex' ? 'bibtex' : language}
         value={content || ''}
         theme={theme === 'dark' ? 'vs-dark' : 'vs'}
@@ -465,7 +467,7 @@ function MonacoEditorContent({ content, language, onChange, fileName, readOnly =
             comments: false,
             strings: true
           },
-          quickSuggestionsDelay: 100,
+          quickSuggestionsDelay: 50,
           folding: true,
           foldingStrategy: 'indentation',
           lineNumbers: 'on',
@@ -561,30 +563,4 @@ function MonacoEditorContent({ content, language, onChange, fileName, readOnly =
   );
 }
 
-function CodeTabs({
-  codes,
-  className,
-  defaultValue,
-  value,
-  onValueChange,
-  ...props
-}) {
-  const firstKey = React.useMemo(() => Object.keys(codes)[0] ?? '', [codes]);
-
-  // Handle controlled vs uncontrolled properly
-  const tabsProps = value !== undefined 
-    ? { value, onValueChange } 
-    : { defaultValue: defaultValue ?? firstKey };
-
-  return (
-    <Tabs
-      data-slot="install-tabs"
-      className={cn('w-full gap-0 bg-muted/50 rounded-xl border overflow-hidden h-full', className)}
-      {...tabsProps}
-      {...props}>
-      <MonacoEditorContent codes={codes} {...props} />
-    </Tabs>
-  );
-}
-
-export { CodeTabs, MonacoEditorContent };
+export { MonacoEditorContent };

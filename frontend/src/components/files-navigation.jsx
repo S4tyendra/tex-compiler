@@ -8,7 +8,7 @@ import {
   TreeProvider,
   TreeView,
 } from "@/components/ui/kibo-ui/tree";
-import { FileCode, FileJson, FileText, FileType, FolderOpen, Folder, Image, FileX } from "lucide-react";
+import { FileCode, FileJson, FileText, FileType, FolderOpen, Folder, Image, FileX, FilePlus, FolderPlus } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -449,6 +449,22 @@ Content goes here.
               {isDragOver && (
                 <span className="text-xs text-primary ml-2">Drop files here</span>
               )}
+              <div className="ml-auto flex gap-1">
+                <button
+                  className="h-6 w-6 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground"
+                  onClick={() => openDialog('createFile', '/')}
+                  title="New File"
+                >
+                  <FilePlus className="h-4 w-4" />
+                </button>
+                <button
+                  className="h-6 w-6 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground"
+                  onClick={() => openDialog('createFolder', '/')}
+                  title="New Folder"
+                >
+                  <FolderPlus className="h-4 w-4" />
+                </button>
+              </div>
             </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
