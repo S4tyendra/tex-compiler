@@ -149,39 +149,178 @@ export default function PDFPreview({ lastCompilation, compilations, onCompilatio
             </TabsPanel>
 
             <TabsPanel value="log" className="h-full">
-              <ScrollArea className="h-full p-4">
-                <pre className="w-full text-sm font-mono whitespace-pre-wrap">{lastCompilation.logsText || "No logs available for this compilation."}</pre>
-              </ScrollArea>
+              <div className="h-full flex flex-col">
+                {/* Log Header */}
+                <div className="flex items-center justify-between border-b bg-muted/30 px-4 py-2 flex-shrink-0">
+                  <div className="flex items-center gap-2">
+                    <Terminal className="h-4 w-4" />
+                    <span className="font-medium">Compilation Log</span>
+                    {lastCompilation.success ? (
+                      <Badge variant="default" className="bg-green-500">Success</Badge>
+                    ) : (
+                      <Badge variant="destructive">Error</Badge>
+                    )}
+                  </div>
+                  {lastCompilation.logsText && (
+                    <Button variant="outline" size="sm" onClick={downloadLogs} className="gap-2">
+                      <Download className="h-4 w-4" />
+                      <span className="hidden sm:inline">Download</span>
+                    </Button>
+                  )}
+                </div>
+
+                {/* Log Content */}
+                <ScrollArea className="flex-1">
+                  <div className="p-4">
+                    {lastCompilation.logsText ? (
+                      <div className="space-y-2">
+                        {/* Error Summary */}
+                        {!lastCompilation.success && (
+                          <Card className="p-3 border-red-200 bg-red-50 dark:bg-red-950 dark:border-red-800">
+                            <div className="flex items-start gap-2">
+                              <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
+                              <div>
+                                <div className="font-medium text-red-700 dark:text-red-300">Compilation Failed</div>
+                                <div className="text-sm text-red-600 dark:text-red-400 mt-1">
+                                  {lastCompilation.message || "Check the logs below for details"}
+                                </div>
+                              </div>
+                            </div>
+                          </Card>
+                        )}
+
+                        {/* Raw Logs */}
+                        <Card className="overflow-hidden">
+                          <div className="bg-muted/50 px-3 py-2 border-b">
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <FileText className="h-3 w-3" />
+                              Raw Logs
+                            </div>
+                          </div>
+                          <ScrollArea className="h-[400px] w-full">
+                            <pre className="p-4 text-xs font-mono whitespace-pre-wrap leading-relaxed text-foreground/90 bg-background">
+                              {lastCompilation.logsText}
+                            </pre>
+                          </ScrollArea>
+                        </Card>
+
+                        {/* Expandable Error Details */}
+                        {!lastCompilation.success && (
+                          <Card className="overflow-hidden">
+                            <div className="bg-muted/50 px-3 py-2 border-b">
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <AlertCircle className="h-3 w-3" />
+                                Common Solutions
+                              </div>
+                            </div>
+                            <div className="p-4 text-sm space-y-2">
+                              <div className="flex items-start gap-2">
+                                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-2 flex-shrink-0"></div>
+                                <span>Check for missing packages in your LaTeX document</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-2 flex-shrink-0"></div>
+                                <span>Verify file paths and references are correct</span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-2 flex-shrink-0"></div>
+                                <span>Look for syntax errors in LaTeX commands</span>
+                              </div>
+                            </div>
+                          </Card>
+                        )}
+                      </div>
+                    ) : (
+                      <Card className="p-8 text-center">
+                        <Terminal className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                        <h3 className="text-lg font-semibold mb-2">No Logs Available</h3>
+                        <p className="text-muted-foreground">
+                          No compilation logs found for this session.
+                        </p>
+                      </Card>
+                    )}
+                  </div>
+                </ScrollArea>
+              </div>
             </TabsPanel>
 
             <TabsPanel value="history" className="h-full">
-              {compilations.length === 0 ? (
-                <div className="h-full flex items-center justify-center p-8">
-                  <Card className="p-8 text-center"><History className="h-12 w-12 mx-auto mb-4" /> No History</Card>
+              <div className="h-full flex flex-col">
+                {/* History Header */}
+                <div className="flex items-center justify-between border-b bg-muted/30 px-4 py-2 flex-shrink-0">
+                  <div className="flex items-center gap-2">
+                    <History className="h-4 w-4" />
+                    <span className="font-medium">Compilation History</span>
+                    <Badge variant="outline" className="bg-background">
+                      {compilations.length} {compilations.length === 1 ? 'item' : 'items'}
+                    </Badge>
+                  </div>
                 </div>
-              ) : (
-                <ScrollArea className="h-full p-4">
-                  <div className="space-y-2">
-                    {compilations.map((comp) => (
-                      <Card key={comp.id} className={`p-3 md:p-4 cursor-pointer hover:bg-muted/50 ${lastCompilation?.id === comp.id ? 'ring-2 ring-primary' : ''}`} onClick={() => onCompilationSelect(comp)}>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            {comp.success ? <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" /> : <XCircle className="h-4 w-4 text-red-500 flex-shrink-0" />}
-                            <div className="min-w-0 flex-1">
-                              <div className="font-medium truncate">{comp.mainFile}.tex</div>
-                              <div className="text-sm text-muted-foreground truncate">{formatTimestamp(comp.timestamp)}</div>
+
+                {/* History Content */}
+                {compilations.length === 0 ? (
+                  <div className="flex-1 flex items-center justify-center p-8">
+                    <Card className="p-8 text-center max-w-md">
+                      <History className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                      <h3 className="text-lg font-semibold mb-2">No History</h3>
+                      <p className="text-muted-foreground">
+                        Your compilation history will appear here after you run your first compilation.
+                      </p>
+                    </Card>
+                  </div>
+                ) : (
+                  <ScrollArea className="flex-1">
+                    <div className="p-4 space-y-3">
+                      {compilations.map((comp, index) => (
+                        <Card 
+                          key={comp.id} 
+                          className={`p-4 cursor-pointer transition-all hover:shadow-md hover:bg-muted/50 ${
+                            lastCompilation?.id === comp.id ? 'ring-2 ring-primary bg-primary/5' : ''
+                          }`} 
+                          onClick={() => onCompilationSelect(comp)}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3 min-w-0 flex-1">
+                              {comp.success ? (
+                                <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
+                              ) : (
+                                <XCircle className="h-5 w-5 text-red-500 flex-shrink-0" />
+                              )}
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <div className="font-medium truncate">{comp.mainFile}.tex</div>
+                                  {index === 0 && (
+                                    <Badge variant="secondary" className="text-xs">Latest</Badge>
+                                  )}
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                  {formatTimestamp(comp.timestamp)}
+                                </div>
+                                {comp.message && (
+                                  <div className="text-xs text-muted-foreground mt-1 truncate">
+                                    {comp.message}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex flex-col items-end gap-1 flex-shrink-0 ml-4">
+                              <Badge variant="outline" className="text-xs">
+                                {comp.compiler}
+                              </Badge>
+                              <Badge 
+                                variant={comp.success ? "default" : "destructive"} 
+                                className="text-xs"
+                              >
+                                {comp.success ? "Success" : "Failed"}
+                              </Badge>
                             </div>
                           </div>
-                          <div className="flex flex-col sm:flex-row items-end sm:items-center gap-1 sm:gap-2 flex-shrink-0">
-                            <Badge variant="outline" className="text-xs">{comp.compiler}</Badge>
-                            <Badge variant={comp.success ? "default" : "destructive"} className="text-xs">{comp.success ? "Success" : "Failed"}</Badge>
-                          </div>
-                        </div>
-                      </Card>
-                    ))}
-                  </div>
-                </ScrollArea>
-              )}
+                        </Card>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                )}
+              </div>
             </TabsPanel>
           </TabsPanels>
         </div>
