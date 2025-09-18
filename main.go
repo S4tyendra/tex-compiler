@@ -134,7 +134,7 @@ func main() {
 	http.HandleFunc("/logs/", handleLogs)
 	http.HandleFunc("/files/", handleFiles)
 	http.HandleFunc("/health", handleHealth)
-	
+
 	// Serve SPA from frontend/dist
 	http.HandleFunc("/", handleSPA)
 
@@ -657,12 +657,12 @@ func scheduleCleanup(jobID string) {
 
 func handleSPA(w http.ResponseWriter, r *http.Request) {
 	// Check if requesting a static file
-	if strings.HasSuffix(r.URL.Path, ".js") || strings.HasSuffix(r.URL.Path, ".css") || 
-	   strings.HasSuffix(r.URL.Path, ".png") || strings.HasSuffix(r.URL.Path, ".jpg") || 
-	   strings.HasSuffix(r.URL.Path, ".jpeg") || strings.HasSuffix(r.URL.Path, ".gif") || 
-	   strings.HasSuffix(r.URL.Path, ".svg") || strings.HasSuffix(r.URL.Path, ".ico") ||
-	   strings.HasSuffix(r.URL.Path, ".woff") || strings.HasSuffix(r.URL.Path, ".woff2") ||
-	   strings.HasSuffix(r.URL.Path, ".ttf") || strings.HasSuffix(r.URL.Path, ".eot") {
+	if strings.HasSuffix(r.URL.Path, ".js") || strings.HasSuffix(r.URL.Path, ".css") ||
+		strings.HasSuffix(r.URL.Path, ".png") || strings.HasSuffix(r.URL.Path, ".jpg") ||
+		strings.HasSuffix(r.URL.Path, ".jpeg") || strings.HasSuffix(r.URL.Path, ".gif") ||
+		strings.HasSuffix(r.URL.Path, ".svg") || strings.HasSuffix(r.URL.Path, ".ico") ||
+		strings.HasSuffix(r.URL.Path, ".woff") || strings.HasSuffix(r.URL.Path, ".woff2") ||
+		strings.HasSuffix(r.URL.Path, ".ttf") || strings.HasSuffix(r.URL.Path, ".eot") {
 		// Serve static files from dist directory
 		filePath := filepath.Join("./dist", r.URL.Path)
 		if _, err := os.Stat(filePath); err == nil {
@@ -670,14 +670,14 @@ func handleSPA(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	
+
 	// For all other routes (including /), serve index.html
 	indexPath := "./dist/index.html"
 	if _, err := os.Stat(indexPath); err != nil {
 		http.Error(w, "SPA not built", http.StatusNotFound)
 		return
 	}
-	
+
 	w.Header().Set("Content-Type", "text/html")
 	http.ServeFile(w, r, indexPath)
 }
