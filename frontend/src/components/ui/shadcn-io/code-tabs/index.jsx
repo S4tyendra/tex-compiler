@@ -449,7 +449,7 @@ function MonacoEditorContent({ content, language, onChange, fileName, readOnly =
       className='h-full w-full flex flex-col'>
       <Editor
         height="100vh"
-        width="100vh"
+        width="100%"
         style={{ borderRadius: '8px', height: '100%', width: '100%' }}
         language={language === 'latex' ? 'latex' : language === 'bibtex' ? 'bibtex' : language}
         value={content || ''}

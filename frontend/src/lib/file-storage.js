@@ -3,17 +3,23 @@ import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 
 const DB_NAME = 'TexCompilerDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_NAME = 'files';
+const COMPILATIONS_STORE = 'compilations';
 
 // Initialize IndexedDB
 async function initDB() {
   return openDB(DB_NAME, DB_VERSION, {
-    upgrade(db) {
+    upgrade(db, oldVersion) {
       if (!db.objectStoreNames.contains(STORE_NAME)) {
         const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
         store.createIndex('name', 'name', { unique: false });
         store.createIndex('path', 'path', { unique: true });
+      }
+      
+      if (!db.objectStoreNames.contains(COMPILATIONS_STORE)) {
+        const compStore = db.createObjectStore(COMPILATIONS_STORE, { keyPath: 'id' });
+        compStore.createIndex('timestamp', 'timestamp', { unique: false });
       }
     },
   });
@@ -405,6 +411,38 @@ Write your content here.
     
     const content = await zip.generateAsync({ type: 'blob' });
     saveAs(content, 'tex-project.zip');
+  }
+
+  // Compilation history methods
+  async saveCompilation(compilation) {
+    const tx = this.db.transaction(COMPILATIONS_STORE, 'readwrite');
+    await tx.objectStore(COMPILATIONS_STORE).put(compilation);
+    await tx.done;
+  }
+
+  async getCompilations() {
+    const tx = this.db.transaction(COMPILATIONS_STORE, 'readonly');
+    const store = tx.objectStore(COMPILATIONS_STORE);
+    const index = store.index('timestamp');
+    const compilations = await index.getAll();
+    await tx.done;
+    
+    // Sort by timestamp descending (newest first)
+    return compilations.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 20);
+  }
+
+  async deleteOldCompilations() {
+    const compilations = await this.getCompilations();
+    if (compilations.length > 20) {
+      const tx = this.db.transaction(COMPILATIONS_STORE, 'readwrite');
+      const store = tx.objectStore(COMPILATIONS_STORE);
+      
+      // Delete compilations beyond the 20 most recent
+      for (let i = 20; i < compilations.length; i++) {
+        await store.delete(compilations[i].id);
+      }
+      await tx.done;
+    }
   }
 
   // Build tree structure for navigation

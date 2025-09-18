@@ -291,18 +291,20 @@ export default function EnhancedCodeEditor({ selectedFile, onFileSelect }) {
           </TabsList>
           
           {/* Save indicator */}
-          {unsavedChanges.size > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleManualSave}
-              className="mr-2 text-orange-500 hover:text-orange-600"
-              title="Save current file (Ctrl+S)"
-            >
-              <Save className="h-4 w-4 mr-1" />
-              {unsavedChanges.size}
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {unsavedChanges.size > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleManualSave}
+                className="text-orange-500 hover:text-orange-600"
+                title="Save current file (Ctrl+S)"
+              >
+                <Save className="h-4 w-4 mr-1" />
+                {unsavedChanges.size}
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Tab Content */}
