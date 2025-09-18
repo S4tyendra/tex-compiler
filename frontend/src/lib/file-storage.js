@@ -10,18 +10,28 @@ const COMPILATIONS_STORE = 'compilations';
 // Initialize IndexedDB
 async function initDB() {
   return openDB(DB_NAME, DB_VERSION, {
-    upgrade(db, oldVersion) {
+    upgrade(db, oldVersion, newVersion, transaction) {
+      console.log('Upgrading database from version', oldVersion, 'to', newVersion);
+      
       if (!db.objectStoreNames.contains(STORE_NAME)) {
         const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
         store.createIndex('name', 'name', { unique: false });
         store.createIndex('path', 'path', { unique: true });
+        console.log('Created files store');
       }
       
       if (!db.objectStoreNames.contains(COMPILATIONS_STORE)) {
-        const compStore = db.createObjectStore(COMPILATIONS_STORE, { keyPath: 'id' });
-        compStore.createIndex('timestamp', 'timestamp', { unique: false });
+        const compilationsStore = db.createObjectStore(COMPILATIONS_STORE, { keyPath: 'id' });
+        compilationsStore.createIndex('timestamp', 'timestamp', { unique: false });
+        console.log('Created compilations store');
       }
     },
+    blocked() {
+      console.warn('Database upgrade blocked');
+    },
+    blocking() {
+      console.warn('Database blocking upgrade');
+    }
   });
 }
 
@@ -420,34 +430,78 @@ Write your content here.
   }
 
   // Compilation history methods
-  async saveCompilation(compilation) {
-    const tx = this.db.transaction(COMPILATIONS_STORE, 'readwrite');
-    await tx.objectStore(COMPILATIONS_STORE).put(compilation);
-    await tx.done;
+  async saveCompilation(compilationData) {
+    if (!this.db) {
+      await this.init();
+    }
+    
+    try {
+      const compilation = {
+        id: compilationData.job_id,
+        job_id: compilationData.job_id,
+        success: compilationData.success,
+        message: compilationData.message,
+        logs_url: compilationData.logs_url,
+        pdf_url: compilationData.pdf_url,
+        timestamp: new Date().toISOString(),
+        compiler: compilationData.compiler || 'pdflatex',
+        mainFile: compilationData.mainFile || 'main'
+      };
+      
+      const tx = this.db.transaction(COMPILATIONS_STORE, 'readwrite');
+      await tx.objectStore(COMPILATIONS_STORE).put(compilation);
+      await tx.done;
+      
+      // Clean up old compilations
+      await this.deleteOldCompilations();
+      
+      return compilation;
+    } catch (error) {
+      console.error('Error saving compilation:', error);
+      throw error;
+    }
   }
 
   async getCompilations() {
-    const tx = this.db.transaction(COMPILATIONS_STORE, 'readonly');
-    const store = tx.objectStore(COMPILATIONS_STORE);
-    const index = store.index('timestamp');
-    const compilations = await index.getAll();
-    await tx.done;
+    if (!this.db) {
+      await this.init();
+    }
     
-    // Sort by timestamp descending (newest first)
-    return compilations.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 20);
+    try {
+      const tx = this.db.transaction(COMPILATIONS_STORE, 'readonly');
+      const store = tx.objectStore(COMPILATIONS_STORE);
+      const compilations = await store.getAll();
+      await tx.done;
+      
+      // Sort by timestamp descending (newest first)
+      return compilations
+        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+        .slice(0, 20);
+    } catch (error) {
+      console.error('Error getting compilations:', error);
+      return [];
+    }
   }
 
   async deleteOldCompilations() {
-    const compilations = await this.getCompilations();
-    if (compilations.length > 20) {
-      const tx = this.db.transaction(COMPILATIONS_STORE, 'readwrite');
-      const store = tx.objectStore(COMPILATIONS_STORE);
-      
-      // Delete compilations beyond the 20 most recent
-      for (let i = 20; i < compilations.length; i++) {
-        await store.delete(compilations[i].id);
+    if (!this.db) {
+      await this.init();
+    }
+    
+    try {
+      const compilations = await this.getCompilations();
+      if (compilations.length > 20) {
+        const tx = this.db.transaction(COMPILATIONS_STORE, 'readwrite');
+        const store = tx.objectStore(COMPILATIONS_STORE);
+        
+        // Delete compilations beyond the 20 most recent
+        for (let i = 20; i < compilations.length; i++) {
+          await store.delete(compilations[i].id);
+        }
+        await tx.done;
       }
-      await tx.done;
+    } catch (error) {
+      console.error('Error deleting old compilations:', error);
     }
   }
 

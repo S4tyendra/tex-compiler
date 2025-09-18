@@ -28,15 +28,14 @@ export default function App() {
       console.log('Compilation result:', result);
       
       // Save compilation to storage and update state
-      if (result.success) {
-        const compilation = {
+      if (result) {
+        const compilationData = {
           ...result,
           mainFile,
-          compiler,
-          timestamp: new Date().toISOString()
+          compiler
         };
-        await fileStorage.saveCompilation(compilation);
-        setLastCompilation(compilation);
+        await compilerService.addCompilation(compilationData);
+        setLastCompilation(compilationData);
       }
       
       return result;
