@@ -75,15 +75,21 @@ export default function PDFPreview({ lastCompilation, compilations, onCompilatio
     <div className="h-full w-full flex flex-col">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex flex-col flex-1">
         <div className="flex items-center justify-between border-b bg-background flex-shrink-0">
-          <TabsList className="h-auto bg-transparent border-none rounded-none">
-            <TabsTab value="output" disabled={!lastCompilation.success} className="relative group data-[selected]:bg-background data-[selected]:border-b-2 data-[selected]:border-primary rounded-none border-b-2 border-transparent hover:bg-muted/50 px-4 py-2 flex items-center gap-2">
-              <Eye className="h-4 w-4" /> PDF Output
+          <TabsList className="h-auto bg-transparent border-none rounded-none overflow-x-auto">
+            <TabsTab value="output" disabled={!lastCompilation.success} className="relative group data-[selected]:bg-background data-[selected]:border-b-2 data-[selected]:border-primary rounded-none border-b-2 border-transparent hover:bg-muted/50 px-3 md:px-4 py-2 flex items-center gap-2 flex-shrink-0">
+              <Eye className="h-4 w-4" /> 
+              <span className="hidden sm:inline">PDF Output</span>
+              <span className="sm:hidden">PDF</span>
             </TabsTab>
-            <TabsTab value="log" className="relative group data-[selected]:bg-background data-[selected]:border-b-2 data-[selected]:border-primary rounded-none border-b-2 border-transparent hover:bg-muted/50 px-4 py-2 flex items-center gap-2">
-              <Terminal className="h-4 w-4" /> Log
+            <TabsTab value="log" className="relative group data-[selected]:bg-background data-[selected]:border-b-2 data-[selected]:border-primary rounded-none border-b-2 border-transparent hover:bg-muted/50 px-3 md:px-4 py-2 flex items-center gap-2 flex-shrink-0">
+              <Terminal className="h-4 w-4" /> 
+              <span className="hidden sm:inline">Log</span>
+              <span className="sm:hidden">Log</span>
             </TabsTab>
-            <TabsTab value="history" className="relative group data-[selected]:bg-background data-[selected]:border-b-2 data-[selected]:border-primary rounded-none border-b-2 border-transparent hover:bg-muted/50 px-4 py-2 flex items-center gap-2">
-              <History className="h-4 w-4" /> History ({compilations.length})
+            <TabsTab value="history" className="relative group data-[selected]:bg-background data-[selected]:border-b-2 data-[selected]:border-primary rounded-none border-b-2 border-transparent hover:bg-muted/50 px-3 md:px-4 py-2 flex items-center gap-2 flex-shrink-0">
+              <History className="h-4 w-4" /> 
+              <span className="hidden sm:inline">History ({compilations.length})</span>
+              <span className="sm:hidden">({compilations.length})</span>
             </TabsTab>
           </TabsList>
 
@@ -91,9 +97,9 @@ export default function PDFPreview({ lastCompilation, compilations, onCompilatio
             {lastCompilation && (
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="ghost" size="sm" className="gap-2">
+                  <Button variant="ghost" size="sm" className="gap-2 px-2 md:px-3">
                     {lastCompilation.success ? <CheckCircle className="h-4 w-4 text-green-500" /> : <XCircle className="h-4 w-4 text-red-500" />}
-                    Info
+                    <span className="hidden md:inline">Info</span>
                     <Info className="h-4 w-4" />
                   </Button>
                 </PopoverTrigger>
@@ -157,16 +163,19 @@ export default function PDFPreview({ lastCompilation, compilations, onCompilatio
                 <ScrollArea className="h-full p-4">
                   <div className="space-y-2">
                     {compilations.map((comp) => (
-                      <Card key={comp.id} className={`p-4 cursor-pointer hover:bg-muted/50 ${lastCompilation?.id === comp.id ? 'ring-2 ring-primary' : ''}`} onClick={() => onCompilationSelect(comp)}>
+                      <Card key={comp.id} className={`p-3 md:p-4 cursor-pointer hover:bg-muted/50 ${lastCompilation?.id === comp.id ? 'ring-2 ring-primary' : ''}`} onClick={() => onCompilationSelect(comp)}>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            {comp.success ? <CheckCircle className="h-4 w-4 text-green-500" /> : <XCircle className="h-4 w-4 text-red-500" />}
-                            <div>
-                              <div className="font-medium">{comp.mainFile}.tex</div>
-                              <div className="text-sm text-muted-foreground">{formatTimestamp(comp.timestamp)}</div>
+                            {comp.success ? <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" /> : <XCircle className="h-4 w-4 text-red-500 flex-shrink-0" />}
+                            <div className="min-w-0 flex-1">
+                              <div className="font-medium truncate">{comp.mainFile}.tex</div>
+                              <div className="text-sm text-muted-foreground truncate">{formatTimestamp(comp.timestamp)}</div>
                             </div>
                           </div>
-                          <Badge variant={comp.success ? "default" : "destructive"}>{comp.success ? "Success" : "Failed"}</Badge>
+                          <div className="flex flex-col sm:flex-row items-end sm:items-center gap-1 sm:gap-2 flex-shrink-0">
+                            <Badge variant="outline" className="text-xs">{comp.compiler}</Badge>
+                            <Badge variant={comp.success ? "default" : "destructive"} className="text-xs">{comp.success ? "Success" : "Failed"}</Badge>
+                          </div>
                         </div>
                       </Card>
                     ))}

@@ -26,10 +26,11 @@ import {
   ToggleRight,
   Info,
   Calendar,
-  Settings
+  Settings,
+  Loader2
 } from "lucide-react";
 
-export default function Header({ onCompile, selectedFile, onFileSelect, autoCompile, onAutoCompileChange, onFileChange }) {
+export default function Header({ onCompile, autoCompile, onAutoCompileChange, onFileChange, compilationProgress }) {
   const [health, setHealth] = useState(null);
   const [isOnline, setIsOnline] = useState(true);
   const [files, setFiles] = useState([]);
@@ -123,7 +124,7 @@ export default function Header({ onCompile, selectedFile, onFileSelect, autoComp
   };
 
   const handleCompile = async () => {
-    if (isCompiling || !selectedMainFile) return;
+    if (compilationProgress?.isCompiling || !selectedMainFile) return;
     
     setIsCompiling(true);
     try {
@@ -157,12 +158,22 @@ export default function Header({ onCompile, selectedFile, onFileSelect, autoComp
         
         <Button 
           onClick={handleCompile} 
-          disabled={isCompiling || !selectedMainFile}
+          disabled={compilationProgress?.isCompiling || !selectedMainFile}
           size="sm" 
           className="gap-2"
         >
-          <Play className="h-4 w-4" />
-          {isCompiling ? 'Compiling...' : 'Compile'}
+          {compilationProgress?.isCompiling ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span className="hidden sm:inline">{compilationProgress.stage}</span>
+              <span className="sm:hidden">Compiling...</span>
+            </>
+          ) : (
+            <>
+              <Play className="h-4 w-4" />
+              Compile
+            </>
+          )}
         </Button>
         
         <Button
@@ -173,12 +184,20 @@ export default function Header({ onCompile, selectedFile, onFileSelect, autoComp
           title="Toggle auto-compilation on file change"
         >
           {autoCompile ? <ToggleRight className="h-4 w-4 text-green-400" /> : <ToggleLeft className="h-4 w-4" />}
-          Auto
+          <span className="hidden sm:inline">Auto</span>
         </Button>
+
+        {/* Queue indicator */}
+        {compilationProgress?.hasQueuedCompilation && (
+          <div className="flex items-center gap-1 text-sm text-orange-500">
+            <Clock className="h-3 w-3" />
+            <span className="hidden sm:inline">Queued</span>
+          </div>
+        )}
       </div>
 
-      {/* Compiler and File Selection */}
-      <div className="flex items-center gap-3">
+      {/* Compiler and File Selection - Hide on small screens */}
+      <div className="hidden sm:flex items-center gap-3">
         {files.length > 1 && (
           <Select value={selectedMainFile} onValueChange={(value) => updateSettings('defaultFile', value)}>
             <SelectTrigger className="w-32">
@@ -206,7 +225,7 @@ export default function Header({ onCompile, selectedFile, onFileSelect, autoComp
 
       <div className="flex items-center gap-3">
         {health && isOnline && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="hidden lg:flex items-center gap-2 text-sm text-muted-foreground">
             <Activity className="h-3 w-3" />
             <span>{health.running_jobs || 0}/{health.max_concurrent || 0}</span>
             <Separator orientation="vertical" className="h-4" />
@@ -224,7 +243,7 @@ export default function Header({ onCompile, selectedFile, onFileSelect, autoComp
         </div>
 
         {health?.running_jobs >= health?.max_concurrent && (
-          <div className="flex items-center gap-1 text-yellow-500">
+          <div className="hidden sm:flex items-center gap-1 text-yellow-500">
             <AlertTriangle className="h-4 w-4" />
             <span className="text-xs font-medium">Server Busy</span>
           </div>

@@ -268,14 +268,14 @@ export default function EnhancedCodeEditor({ selectedFile, onFileSelect, onSaveC
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full flex flex-col flex-1">
         {/* Tab Headers */}
         <div className="flex items-center border-b bg-background flex-shrink-0">
-          <TabsList className="h-auto bg-transparent border-none rounded-none flex-1">
+          <TabsList className="h-auto bg-transparent border-none rounded-none flex-1 overflow-x-auto">
             {openTabs.map((tab, index) => (
               <TabsTab
                 key={`tab-${tab.path}-${index}`}
                 value={tab.path}
-                className="relative group data-[selected]:bg-background data-[selected]:border-b-2 data-[selected]:border-primary rounded-none border-b-2 border-transparent hover:bg-muted/50 px-4 py-2 flex items-center gap-2"
+                className="relative group data-[selected]:bg-background data-[selected]:border-b-2 data-[selected]:border-primary rounded-none border-b-2 border-transparent hover:bg-muted/50 px-3 md:px-4 py-2 flex items-center gap-2 flex-shrink-0"
               >
-                <span className="truncate max-w-32">
+                <span className="truncate max-w-20 md:max-w-32">
                   {tab.name}
                   {unsavedChanges.has(tab.path) && (
                     <span className="text-orange-500 ml-1">•</span>
@@ -295,17 +295,17 @@ export default function EnhancedCodeEditor({ selectedFile, onFileSelect, onSaveC
           </TabsList>
           
           {/* Save indicator */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 px-2">
             {unsavedChanges.size > 0 && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={handleManualSave}
-                className="text-orange-500 hover:text-orange-600"
+                className="text-orange-500 hover:text-orange-600 px-2"
                 title="Save current file (Ctrl+S)"
               >
-                <Save className="h-4 w-4 mr-1" />
-                {unsavedChanges.size}
+                <Save className="h-4 w-4 md:mr-1" />
+                <span className="hidden md:inline">{unsavedChanges.size}</span>
               </Button>
             )}
           </div>

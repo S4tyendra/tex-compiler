@@ -46,8 +46,11 @@ export default function App() {
   const [lastCompilation, setLastCompilation] = useState(null)
   const [compilations, setCompilations] = useState([])
   const [autoCompile, setAutoCompile] = useState(true) // Default to on
+  const [compilationProgress, setCompilationProgress] = useState({ isCompiling: false, stage: '', hasQueuedCompilation: false })
   
-  const compilationSettingsRef = useRef({ mainFile: 'main', compiler: 'pdflatex' });
+  const compilationSettingsRef = useRef({ mainFile: 'main', compiler: 'pdflatex' })
+  const isCompilingRef = useRef(false)
+  const queuedCompilationRef = useRef(null)
 
   // Load history and request persistent storage on mount
   useEffect(() => {
@@ -76,27 +79,67 @@ export default function App() {
     }
   };
 
-  const handleCompile = async (mainFile, compiler) => {
+  const handleCompile = async (mainFile, compiler, isQueued = false) => {
+    // If already compiling and this isn't a queued compilation, queue it
+    if (isCompilingRef.current && !isQueued) {
+      queuedCompilationRef.current = { mainFile, compiler }
+      setCompilationProgress(prev => ({ ...prev, hasQueuedCompilation: true }))
+      return
+    }
+
     try {
-      const allFiles = await fileStorage.getAllFiles();
-      const apiResponse = await compilerService.compileProject(allFiles, mainFile, compiler);
+      isCompilingRef.current = true
+      setCompilationProgress({ isCompiling: true, stage: 'Preparing files...', hasQueuedCompilation: false })
+      
+      const allFiles = await fileStorage.getAllFiles()
+      
+      setCompilationProgress(prev => ({ ...prev, stage: 'Zipping project...' }))
+      await new Promise(resolve => setTimeout(resolve, 300)) // Small delay to show progress
+      
+      setCompilationProgress(prev => ({ ...prev, stage: 'Uploading...' }))
+      const apiResponse = await compilerService.compileProject(allFiles, mainFile, compiler)
       
       if (apiResponse.job_id) {
+        setCompilationProgress(prev => ({ ...prev, stage: apiResponse.success ? 'Fetching PDF...' : 'Fetching logs...' }))
+        
         // This now fetches artifacts and saves them to IndexedDB
         const fullRecord = await compilerService.addCompilation({
           ...apiResponse,
           mainFile,
           compiler,
-        });
+        })
+        
+        setCompilationProgress(prev => ({ ...prev, stage: 'Completing...' }))
         
         // Update state with the full record from DB
-        setLastCompilation(fullRecord);
-        await loadHistory(); // Refresh the history list
-        return fullRecord;
+        setLastCompilation(fullRecord)
+        await loadHistory() // Refresh the history list
+        
+        setCompilationProgress({ isCompiling: false, stage: '', hasQueuedCompilation: false })
+        
+        // Process queued compilation if any
+        if (queuedCompilationRef.current) {
+          const queued = queuedCompilationRef.current
+          queuedCompilationRef.current = null
+          setTimeout(() => handleCompile(queued.mainFile, queued.compiler, true), 500)
+        }
+        
+        return fullRecord
       }
     } catch (error) {
-      console.error('Compilation failed:', error);
-      throw error;
+      console.error('Compilation failed:', error)
+      setCompilationProgress({ isCompiling: false, stage: '', hasQueuedCompilation: false })
+      
+      // Process queued compilation even if current one failed
+      if (queuedCompilationRef.current) {
+        const queued = queuedCompilationRef.current
+        queuedCompilationRef.current = null
+        setTimeout(() => handleCompile(queued.mainFile, queued.compiler, true), 500)
+      }
+      
+      throw error
+    } finally {
+      isCompilingRef.current = false
     }
   };
   
@@ -123,29 +166,51 @@ export default function App() {
             autoCompile={autoCompile}
             onAutoCompileChange={setAutoCompile}
             onFileChange={handleSettingsChange}
+            compilationProgress={compilationProgress}
           />
           <div className="h-full flex flex-col">
-            <ResizablePanelGroup direction="horizontal" className="h-full flex-1">
-              <ResizablePanel defaultSize={50} minSize={20}>
-                <div className="h-full w-full">
-                  <EnhancedCodeEditor 
-                    selectedFile={selectedFile} 
-                    onFileSelect={setSelectedFile}
-                    onSaveComplete={handleSaveComplete}
-                  />
-                </div>
-              </ResizablePanel>
-              <ResizableHandle withHandle />
-              <ResizablePanel defaultSize={50} minSize={20}>
-                <div className="h-full w-full">
-                  <PDFPreview 
-                    lastCompilation={lastCompilation}
-                    compilations={compilations}
-                    onCompilationSelect={setLastCompilation}
-                  />
-                </div>
-              </ResizablePanel>
-            </ResizablePanelGroup>
+            {/* Desktop Layout */}
+            <div className="hidden md:block h-full">
+              <ResizablePanelGroup direction="horizontal" className="h-full flex-1">
+                <ResizablePanel defaultSize={50} minSize={20}>
+                  <div className="h-full w-full">
+                    <EnhancedCodeEditor 
+                      selectedFile={selectedFile} 
+                      onFileSelect={setSelectedFile}
+                      onSaveComplete={handleSaveComplete}
+                    />
+                  </div>
+                </ResizablePanel>
+                <ResizableHandle withHandle />
+                <ResizablePanel defaultSize={50} minSize={20}>
+                  <div className="h-full w-full">
+                    <PDFPreview 
+                      lastCompilation={lastCompilation}
+                      compilations={compilations}
+                      onCompilationSelect={setLastCompilation}
+                    />
+                  </div>
+                </ResizablePanel>
+              </ResizablePanelGroup>
+            </div>
+            
+            {/* Mobile Layout - Vertical Stack */}
+            <div className="md:hidden h-full flex flex-col">
+              <div className="flex-1 min-h-0">
+                <EnhancedCodeEditor 
+                  selectedFile={selectedFile} 
+                  onFileSelect={setSelectedFile}
+                  onSaveComplete={handleSaveComplete}
+                />
+              </div>
+              <div className="flex-1 min-h-0 border-t">
+                <PDFPreview 
+                  lastCompilation={lastCompilation}
+                  compilations={compilations}
+                  onCompilationSelect={setLastCompilation}
+                />
+              </div>
+            </div>
           </div>
         </SidebarInset>
       </SidebarProvider>
