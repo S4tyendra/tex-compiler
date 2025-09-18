@@ -22,17 +22,27 @@ import {
   FileDown
 } from "lucide-react";
 
-export default function PDFPreview({ selectedFile, files }) {
+export default function PDFPreview({ lastCompilation: propLastCompilation }) {
   const [activeTab, setActiveTab] = useState("output");
   const [pdfUrl, setPdfUrl] = useState(null);
   const [logs, setLogs] = useState("");
-  const [isCompiling, setIsCompiling] = useState(false);
   const [lastCompilation, setLastCompilation] = useState(null);
   const [compilations, setCompilations] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
   const [loading, setLoading] = useState({ pdf: false, logs: false });
-  const [error, setError] = useState({ pdf: null, logs: null, compile: null });
+  const [error, setError] = useState({ pdf: null, logs: null });
   const iframeRef = useRef();
+
+  // Update last compilation when prop changes
+  useEffect(() => {
+    if (propLastCompilation) {
+      setLastCompilation(propLastCompilation);
+      // Clear previous PDF/logs to force reload
+      setPdfUrl(null);
+      setLogs("");
+      setError({ pdf: null, logs: null });
+    }
+  }, [propLastCompilation]);
 
   useEffect(() => {
     loadCompilationData();
@@ -40,15 +50,15 @@ export default function PDFPreview({ selectedFile, files }) {
 
   // Load PDF when output tab is active and we have a successful compilation
   useEffect(() => {
-    if (activeTab === "output" && lastCompilation?.success && !pdfUrl && !loading.pdf) {
-      loadPDF(lastCompilation.id);
+    if (activeTab === "output" && lastCompilation?.success && lastCompilation?.job_id && !pdfUrl && !loading.pdf) {
+      loadPDF(lastCompilation.job_id);
     }
   }, [activeTab, lastCompilation]);
 
   // Load logs when log tab is active
   useEffect(() => {
-    if (activeTab === "log" && lastCompilation && !logs && !loading.logs) {
-      loadLogs(lastCompilation.id);
+    if (activeTab === "log" && lastCompilation?.job_id && !logs && !loading.logs) {
+      loadLogs(lastCompilation.job_id);
     }
   }, [activeTab, lastCompilation]);
 
@@ -62,63 +72,6 @@ export default function PDFPreview({ selectedFile, files }) {
       }
     } catch (error) {
       console.error("Failed to load compilation history:", error);
-    }
-  };
-
-  const handleCompile = async () => {
-    if (!files || files.length === 0) {
-      setError(prev => ({ ...prev, compile: "No files to compile" }));
-      return;
-    }
-
-    setIsCompiling(true);
-    setError({ pdf: null, logs: null, compile: null });
-    
-    try {
-      // Get main file name from selected file or default to main.tex
-      const mainFileName = selectedFile ? 
-        selectedFile.replace(/^\//, '').replace(/\.tex$/, '') : 
-        'main';
-      
-      const result = await compilerService.compileProject(files, mainFileName);
-      
-      if (result.success) {
-        const newCompilation = {
-          id: result.job_id,
-          timestamp: new Date().toISOString(),
-          mainFile: mainFileName,
-          success: true,
-          logsUrl: result.logs_url,
-          pdfUrl: result.pdf_url
-        };
-        setLastCompilation(newCompilation);
-        
-        // Refresh compilations list
-        await loadCompilationData();
-        
-        // Switch to output tab and load PDF
-        setActiveTab("output");
-      } else {
-        const newCompilation = {
-          id: result.job_id,
-          timestamp: new Date().toISOString(),
-          mainFile: mainFileName,
-          success: false,
-          logsUrl: result.logs_url,
-          message: result.message
-        };
-        setLastCompilation(newCompilation);
-        
-        // Refresh compilations list
-        await loadCompilationData();
-        
-        // Switch to logs tab to show error
-        setActiveTab("log");
-      }
-    } catch (err) {
-      setError(prev => ({ ...prev, compile: err.message }));
-    } finally {
-      setIsCompiling(false);
     }
   };
 
@@ -212,17 +165,9 @@ export default function PDFPreview({ selectedFile, files }) {
         <Card className="p-8 text-center max-w-md">
           <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-lg font-semibold mb-2">No Compilations Yet</h3>
-          <p className="text-muted-foreground mb-4">
-            Compile your LaTeX project to see the PDF output and logs here.
+          <p className="text-muted-foreground">
+            Use the compile button in the header to compile your LaTeX project and see the PDF output and logs here.
           </p>
-          <Button onClick={handleCompile} disabled={isCompiling || !files?.length}>
-            {isCompiling ? (
-              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-            ) : (
-              <Play className="h-4 w-4 mr-1" />
-            )}
-            {isCompiling ? "Compiling..." : "Compile Now"}
-          </Button>
         </Card>
       </div>
     );
@@ -294,15 +239,6 @@ export default function PDFPreview({ selectedFile, files }) {
                 )}
               </>
             )}
-            
-            <Button onClick={handleCompile} disabled={isCompiling || !files?.length}>
-              {isCompiling ? (
-                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-              ) : (
-                <Play className="h-4 w-4 mr-1" />
-              )}
-              {isCompiling ? "Compiling..." : "Compile"}
-            </Button>
           </div>
         </div>
 
@@ -337,7 +273,7 @@ export default function PDFPreview({ selectedFile, files }) {
                       <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
                       <h3 className="text-lg font-semibold mb-2">PDF Load Error</h3>
                       <p className="text-muted-foreground mb-4">{error.pdf}</p>
-                      <Button onClick={() => loadPDF(lastCompilation.id)}>Try Again</Button>
+                      <Button onClick={() => loadPDF(lastCompilation.job_id)}>Try Again</Button>
                     </Card>
                   </div>
                 ) : !lastCompilation.success ? (
@@ -387,7 +323,7 @@ export default function PDFPreview({ selectedFile, files }) {
                       <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
                       <h3 className="text-lg font-semibold mb-2">Logs Load Error</h3>
                       <p className="text-muted-foreground mb-4">{error.logs}</p>
-                      <Button onClick={() => loadLogs(lastCompilation.id)}>Try Again</Button>
+                      <Button onClick={() => loadLogs(lastCompilation.job_id)}>Try Again</Button>
                     </Card>
                   </div>
                 ) : (

@@ -25,7 +25,7 @@ import {
   AlertTriangle
 } from "lucide-react";
 
-export default function Header({ onCompile }) {
+export default function Header({ onCompile, selectedFile, onFileSelect }) {
   const [health, setHealth] = useState(null);
   const [isOnline, setIsOnline] = useState(true);
   const [files, setFiles] = useState([]);
@@ -55,7 +55,7 @@ export default function Header({ onCompile }) {
     return () => clearInterval(interval);
   }, []);
 
-  // Load files from storage
+  // Load files from storage and watch for changes
   useEffect(() => {
     const loadFiles = async () => {
       try {
@@ -69,11 +69,19 @@ export default function Header({ onCompile }) {
           }));
         setFiles(texFiles);
         
+        // Auto-select main.tex if it exists and no file is manually selected
+        const hasMain = texFiles.find(f => f.name === 'main');
+        if (hasMain && !localStorage.getItem('manualFileSelection')) {
+          setSelectedMainFile('main');
+        }
+        
         // Load saved settings
         const savedSettings = localStorage.getItem('compilerSettings');
         if (savedSettings) {
           const settings = JSON.parse(savedSettings);
-          setSelectedMainFile(settings.defaultFile || 'main');
+          if (settings.defaultFile) {
+            setSelectedMainFile(settings.defaultFile);
+          }
           setSelectedCompiler(settings.compiler || 'pdflatex');
         }
       } catch (error) {
@@ -82,6 +90,11 @@ export default function Header({ onCompile }) {
     };
     
     loadFiles();
+    
+    // Set up a periodic check for file changes (every 2 seconds)
+    const interval = setInterval(loadFiles, 2000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   const updateSettings = (key, value) => {
@@ -93,6 +106,7 @@ export default function Header({ onCompile }) {
     
     if (key === 'defaultFile') {
       setSelectedMainFile(value);
+      localStorage.setItem('manualFileSelection', 'true'); // Mark as manually selected
     } else if (key === 'compiler') {
       setSelectedCompiler(value);
     }
@@ -168,13 +182,13 @@ export default function Header({ onCompile }) {
       {/* Compiler and File Selection */}
       <div className="flex items-center gap-3">
         {/* File Selection - only show if 2 or more files */}
-        {files.length >= 2 && (
+        {files.length > 1 && (
           <Select 
             value={selectedMainFile} 
             onValueChange={(value) => updateSettings('defaultFile', value)}
           >
             <SelectTrigger className="w-32">
-              <SelectValue />
+              <SelectValue placeholder="Select file" />
             </SelectTrigger>
             <SelectContent>
               {files.map((file) => (

@@ -19,12 +19,26 @@ import { fileStorage } from './lib/file-storage'
 
 export default function App() {
   const [selectedFile, setSelectedFile] = useState('/main.tex')
+  const [lastCompilation, setLastCompilation] = useState(null)
   
   const handleCompile = async (mainFile, compiler) => {
     try {
       const allFiles = await fileStorage.getAllFiles();
       const result = await compilerService.compileProject(allFiles, mainFile, compiler);
       console.log('Compilation result:', result);
+      
+      // Save compilation to storage and update state
+      if (result.success) {
+        const compilation = {
+          ...result,
+          mainFile,
+          compiler,
+          timestamp: new Date().toISOString()
+        };
+        await fileStorage.saveCompilation(compilation);
+        setLastCompilation(compilation);
+      }
+      
       return result;
     } catch (error) {
       console.error('Compilation failed:', error);
@@ -37,7 +51,11 @@ export default function App() {
       <SidebarProvider>
         <FilesNavigation onFileSelect={setSelectedFile} />
         <SidebarInset className="h-screen">
-          <Header onCompile={handleCompile} />
+          <Header 
+            onCompile={handleCompile} 
+            selectedFile={selectedFile}
+            onFileSelect={setSelectedFile}
+          />
           <div className="h-full flex flex-col">
             <ResizablePanelGroup direction="horizontal" className="h-full flex-1">
               <ResizablePanel defaultSize={50} minSize={20}>
@@ -48,7 +66,7 @@ export default function App() {
               <ResizableHandle withHandle />
               <ResizablePanel defaultSize={50} minSize={20}>
                 <div className="h-full w-full">
-                  <PDFPreview />
+                  <PDFPreview lastCompilation={lastCompilation} />
                 </div>
               </ResizablePanel>
             </ResizablePanelGroup>
