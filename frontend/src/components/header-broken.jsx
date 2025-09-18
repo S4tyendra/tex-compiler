@@ -43,25 +43,25 @@ export default function Header({ onCompile, selectedFile, onFileSelect, autoComp
         setHealth(healthData);
         setIsOnline(true);
       } catch (error) {
-        console.error('Health check failed:', error);
         setIsOnline(false);
         setHealth(null);
       }
     };
 
+    // Initial check
     checkHealth();
+
+    // Set up interval
     const interval = setInterval(checkHealth, 3000);
+
     return () => clearInterval(interval);
   }, []);
 
-  // Load files and auto-select main file
+  // Load files from storage and watch for changes
   useEffect(() => {
     const loadFiles = async () => {
       try {
-        if (!fileStorage.db) {
-          await fileStorage.init();
-        }
-        
+        await fileStorage.init(); // Ensure database is initialized
         const allFiles = await fileStorage.getAllFiles();
         const texFiles = allFiles
           .filter(file => file.type === 'file' && file.name.endsWith('.tex'))
@@ -69,43 +69,34 @@ export default function Header({ onCompile, selectedFile, onFileSelect, autoComp
             name: file.name.replace('.tex', ''),
             path: file.path
           }));
-        
         setFiles(texFiles);
         
-        // Auto-select main file (prioritize main.tex if it exists)
-        const hasManualSelection = localStorage.getItem('manualFileSelection') === 'true';
-        if (!hasManualSelection) {
-          const mainFile = texFiles.find(f => f.name === 'main');
-          if (mainFile) {
-            setSelectedMainFile('main');
-          } else if (texFiles.length > 0) {
-            setSelectedMainFile(texFiles[0].name);
-          }
+        // Auto-select main.tex if it exists and no file is manually selected
+        const hasMain = texFiles.find(f => f.name === 'main');
+        if (hasMain && !localStorage.getItem('manualFileSelection')) {
+          setSelectedMainFile('main');
         }
         
         // Load saved settings
         const savedSettings = localStorage.getItem('compilerSettings');
         if (savedSettings) {
           const settings = JSON.parse(savedSettings);
-          setSelectedCompiler(settings.compiler || 'pdflatex');
-          if (hasManualSelection) {
-            setSelectedMainFile(settings.defaultFile || 'main');
+          if (settings.defaultFile) {
+            setSelectedMainFile(settings.defaultFile);
           }
+          setSelectedCompiler(settings.compiler || 'pdflatex');
         }
       } catch (error) {
         console.error('Error loading files:', error);
       }
     };
-
+    
     loadFiles();
     
-    // Listen for file changes
-    const handleStorageChange = () => {
-      loadFiles();
-    };
+    // Set up a periodic check for file changes (every 2 seconds)
+    const interval = setInterval(loadFiles, 2000);
     
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    return () => clearInterval(interval);
   }, []);
 
   const updateSettings = (key, value) => {
@@ -129,30 +120,52 @@ export default function Header({ onCompile, selectedFile, onFileSelect, autoComp
       onFileChange(settings.defaultFile, settings.compiler);
     }
   };
-
+  
   const handleCompile = async () => {
     if (isCompiling) return;
     
     setIsCompiling(true);
     try {
-      await onCompile(selectedMainFile, selectedCompiler);
+      await onCompile?.(selectedMainFile, selectedCompiler);
     } catch (error) {
-      console.error('Compilation failed:', error);
+      console.error('Compilation error:', error);
     } finally {
       setIsCompiling(false);
     }
   };
 
   const getStatusColor = () => {
-    if (!isOnline) return 'bg-red-500';
-    if (!health) return 'bg-yellow-500';
-    return health.status === 'healthy' ? 'bg-green-500' : 'bg-red-500';
+    if (!isOnline) return "bg-red-500";
+    if (!health) return "bg-gray-500";
+    
+    switch (health.status) {
+      case "healthy":
+        return health.running_jobs >= health.max_concurrent ? "bg-yellow-500" : "bg-green-500";
+      case "degraded":
+        return "bg-yellow-500";
+      case "unhealthy":
+      case "error":
+        return "bg-red-500";
+      default:
+        return "bg-gray-500";
+    }
   };
 
   const getStatusText = () => {
-    if (!isOnline) return 'Offline';
-    if (!health) return 'Loading';
-    return health.status === 'healthy' ? 'Online' : 'Error';
+    if (!isOnline) return "Offline";
+    if (!health) return "Checking...";
+    
+    switch (health.status) {
+      case "healthy":
+        return health.running_jobs >= health.max_concurrent ? "Busy" : "Online";
+      case "degraded":
+        return "Degraded";
+      case "unhealthy":
+      case "error":
+        return "Error";
+      default:
+        return "Unknown";
+    }
   };
 
   return (
@@ -169,18 +182,7 @@ export default function Header({ onCompile, selectedFile, onFileSelect, autoComp
           className="gap-2"
         >
           <Play className="h-4 w-4" />
-          {isCompiling ? 'Compiling...' : 'Compile'}
-        </Button>
-        
-        {/* Auto-compile toggle */}
-        <Button
-          variant={autoCompile ? "default" : "outline"}
-          size="sm"
-          onClick={() => onAutoCompileChange?.(!autoCompile)}
-          className="gap-2"
-        >
-          {autoCompile ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
-          Auto
+                    {isCompiling ? 'Compiling...' : 'Compile'}\n        </Button>\n        \n        {/* Auto-compile toggle */}\n        <Button\n          variant={autoCompile ? \"default\" : \"outline\"}\n          size=\"sm\"\n          onClick={() => onAutoCompileChange?.(!autoCompile)}\n          className=\"gap-2\"\n        >\n          {autoCompile ? <ToggleRight className=\"h-4 w-4\" /> : <ToggleLeft className=\"h-4 w-4\" />}\n          Auto\n        </Button>
         </Button>
       </div>
 
@@ -223,7 +225,7 @@ export default function Header({ onCompile, selectedFile, onFileSelect, autoComp
 
       {/* Status and Health */}
       <div className="flex items-center gap-3">
-        {/* Health Info */}
+        {/* Service Health */}
         {health && isOnline && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <div className="flex items-center gap-1">

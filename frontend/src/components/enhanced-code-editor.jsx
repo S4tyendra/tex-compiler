@@ -31,7 +31,7 @@ const useDebounce = (callback, delay) => {
   return debouncedCallback;
 };
 
-export default function EnhancedCodeEditor({ selectedFile, onFileSelect }) {
+export default function EnhancedCodeEditor({ selectedFile, onFileSelect, onFileChange }) {
   const [openTabs, setOpenTabs] = useState([]);
   const [activeTab, setActiveTab] = useState(null);
   const [tabContents, setTabContents] = useState({});
