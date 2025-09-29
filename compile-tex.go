@@ -275,7 +275,7 @@ func compileDirectory(host, dirPath, mainFile string, log bool) {
 		os.Exit(1)
 	}
 	part.Write(buf.Bytes())
-	writer.WriteField("mainFile", mainFile)
+	writer.WriteField("main", mainFile)
 	writer.Close()
 
 	// Uploading progress
