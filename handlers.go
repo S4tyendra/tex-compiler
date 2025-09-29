@@ -77,31 +77,41 @@ func handleCompile(w http.ResponseWriter, r *http.Request) {
 	if strings.HasSuffix(filename, ".zip") {
 		// ZIP file handling
 		zipData = fileData
-		mainFile = r.FormValue("main")
 		isSingleFile = false
 
-		// If main file is not specified, check if the zip contains a single .tex file
-		if mainFile == "" {
-			zipReader, err := zip.NewReader(bytes.NewReader(zipData), int64(len(zipData)))
-			if err != nil {
-				http.Error(w, "Failed to read zip file", http.StatusInternalServerError)
-				return
-			}
+		// Analyze the zip file to determine the main .tex file
+		zipReader, err := zip.NewReader(bytes.NewReader(zipData), int64(len(zipData)))
+		if err != nil {
+			http.Error(w, "Failed to read zip file", http.StatusInternalServerError)
+			return
+		}
 
-			var texFiles []string
-			for _, f := range zipReader.File {
-				if !f.FileInfo().IsDir() && strings.HasSuffix(strings.ToLower(f.Name), ".tex") {
-					texFiles = append(texFiles, f.Name)
-				}
-			}
-
-			if len(texFiles) == 1 {
-				mainFile = texFiles[0]
-			} else {
-				http.Error(w, "main parameter is required for ZIP files with multiple .tex files", http.StatusBadRequest)
-				return
+		var texFiles []string
+		for _, f := range zipReader.File {
+			if !f.FileInfo().IsDir() && strings.HasSuffix(strings.ToLower(f.Name), ".tex") {
+				texFiles = append(texFiles, f.Name)
 			}
 		}
+
+		if len(texFiles) == 0 {
+			http.Error(w, "No .tex files found in the ZIP archive", http.StatusBadRequest)
+			return
+		}
+
+		if len(texFiles) == 1 {
+			// If there's only one .tex file, use it as the main file.
+			mainFile = strings.TrimSuffix(texFiles[0], ".tex")
+		} else {
+			// If multiple .tex files, check 'main' parameter, then fallback to 'main.tex'.
+			mainFileInput := r.FormValue("main")
+			if mainFileInput == "" {
+				http.Error(w, "The 'main' parameter is required for ZIP files with multiple .tex files (e.g., 'main', 'document').", http.StatusBadRequest)
+				return
+			}
+			// Ensure the .tex extension is stripped if present
+			mainFile = strings.TrimSuffix(mainFileInput, ".tex")
+		}
+
 	} else if strings.HasSuffix(filename, ".tex") {
 		// Single .tex file handling
 		texContent = fileData
