@@ -11,7 +11,7 @@ RUN go mod download
 RUN go mod tidy
 
 # Copy source code and build
-COPY main.go .
+COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o tex-compiler .
 
 # Stage 2: Final runtime image with TeX Live
